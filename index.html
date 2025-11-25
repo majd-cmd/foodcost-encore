@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calculateur Food Cost Pro - v3.3 CLOUD</title>
+    <title>Calculateur Food Cost Pro - v3.4 PRO</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- LZ-String compression library for URL sharing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <!-- Chart.js for margin visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -186,6 +188,74 @@
             td input, td select { width: 100%; }
             .form-row { flex-wrap: wrap; }
             .tabs { flex-wrap: wrap; }
+
+            /* Mobile Header */
+            header { padding: 1rem; }
+            .header-content { flex-direction: column; gap: 10px; }
+            h1 { font-size: 1.2rem; flex-wrap: wrap; justify-content: center; text-align: center; }
+            .header-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%; }
+            .header-actions button { padding: 8px 12px; font-size: 0.8rem; flex: 1; min-width: 100px; }
+            .shared-badge { margin: 5px 0 0 0; }
+            .sync-indicator { margin: 5px 0 0 0; }
+
+            /* Mobile Dashboard */
+            .dashboard-row { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+            .dash-kpi { padding: 12px 10px; }
+            .dash-kpi-val { font-size: 1.4rem; }
+            .dash-kpi-lbl { font-size: 0.7rem; }
+
+            /* Mobile Tabs */
+            .tab-btn { padding: 10px 15px; font-size: 0.85rem; }
+            .sub-tabs-container { gap: 6px; padding-bottom: 10px; }
+            .sub-tab { padding: 6px 12px; font-size: 0.8rem; }
+            .add-tab-btn { width: 28px; height: 28px; }
+
+            /* Mobile Cards */
+            .card { padding: 1rem; margin-bottom: 1rem; border-radius: 12px; }
+
+            /* Mobile Recipe Header */
+            .recipe-header { flex-direction: column; align-items: stretch; gap: 10px; }
+            .recipe-header input { font-size: 1.1rem !important; padding: 8px !important; }
+            .recipe-header .btn { width: 100%; justify-content: center; }
+
+            /* Mobile Recipe Stats */
+            .recipe-stats { grid-template-columns: 1fr !important; gap: 10px; }
+            .stat-box { padding: 12px; }
+            .stat-value { font-size: 1rem; }
+
+            /* Mobile Profit Grid */
+            .profit-grid { grid-template-columns: 1fr !important; gap: 15px; }
+            .profit-card { padding: 15px; }
+            .profit-header { flex-direction: column; gap: 10px; align-items: flex-start; }
+            .money-bar { height: 30px; }
+            .bar-segment { font-size: 0.6rem; }
+
+            /* Mobile Alerts */
+            .alert-item { flex-direction: column; gap: 10px; align-items: flex-start; }
+            .alert-item > div:last-child { width: 100%; justify-content: space-between; }
+
+            /* Mobile Ingredient List */
+            .ing-item { padding: 10px 8px; }
+            .ing-name { font-size: 0.85rem; }
+            .ing-price { font-size: 0.75rem; }
+            .ing-actions { gap: 3px; }
+
+            /* Mobile Modals */
+            .card[style*="width: 400px"], .card[style*="width: 450px"], .card[style*="width: 500px"] {
+                width: 95% !important;
+                max-width: 95% !important;
+                margin: 10px !important;
+            }
+        }
+
+        /* Small phones */
+        @media (max-width: 480px) {
+            .dashboard-row { grid-template-columns: 1fr !important; }
+            h1 { font-size: 1rem; }
+            .header-actions button { font-size: 0.75rem; padding: 6px 10px; }
+            .tab-btn { padding: 8px 10px; font-size: 0.8rem; }
+            .btn { padding: 6px 12px; font-size: 0.8rem; }
+            .form-row { gap: 8px; }
         }
 
         /* Navigation Tabs */
@@ -423,6 +493,127 @@
             margin-left: 15px;
         }
 
+        /* Price History Styles */
+        .price-history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .price-history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        .price-history-item:last-child {
+            border-bottom: none;
+        }
+        .price-history-date {
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+        .price-history-value {
+            font-weight: 600;
+        }
+        .price-change-up {
+            color: var(--danger);
+        }
+        .price-change-down {
+            color: var(--success);
+        }
+        .price-change-indicator {
+            font-size: 0.75rem;
+            margin-left: 5px;
+        }
+        .ing-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .ing-edit-btn {
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .ing-edit-btn:hover {
+            background: #eff6ff;
+        }
+        .history-badge {
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        /* Margin Alerts Styles */
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--danger);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .alert-item:last-child {
+            margin-bottom: 0;
+        }
+        .alert-item-name {
+            font-weight: 600;
+            color: var(--text);
+        }
+        .alert-item-details {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 3px;
+        }
+        .alert-item-margin {
+            font-weight: 700;
+            color: var(--danger);
+            font-size: 1.1rem;
+        }
+        .alert-item-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 15px;
+        }
+        .alert-item-btn:hover {
+            background: var(--primary-dark);
+        }
+        .sub-tab.alert-badge::after {
+            content: '!';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            font-size: 0.65rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sub-tab {
+            position: relative;
+        }
+
     </style>
 </head>
 <body>
@@ -481,7 +672,44 @@
                 </div>
                 <div class="dash-kpi">
                     <div class="dash-kpi-val text-success" id="dash-ok-count">0</div>
-                    <div class="dash-kpi-lbl">Plats Rentables (>70%)</div>
+                    <div class="dash-kpi-lbl">Plats Rentables</div>
+                    <div style="font-size:0.7rem; color:var(--text-light); margin-top:5px;">
+                        Seuil: <input type="number" id="marginThreshold" value="70" min="0" max="100" style="width:50px; padding:2px 5px; font-size:0.75rem; border-radius:4px; border:1px solid var(--border);" onchange="updateMarginThreshold(this.value)">%
+                    </div>
+                </div>
+            </div>
+            <!-- Alertes de marge -->
+            <div id="marginAlerts" class="card hidden" style="background: linear-gradient(135deg, #fef2f2, #fff7ed); border-color: #fecaca; margin-bottom: 20px;">
+                <h2 style="color: var(--danger); margin-bottom: 15px;">
+                    <i class="fas fa-exclamation-triangle"></i> Alertes de rentabilite
+                </h2>
+                <div id="alertsList"></div>
+            </div>
+
+            <!-- Graphique des marges -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h2>
+                    <span><i class="fas fa-chart-bar" style="color: var(--primary); margin-right: 8px;"></i> Visualisation des marges</span>
+                    <button class="btn btn-outline btn-sm" onclick="toggleChartType()">
+                        <i class="fas fa-exchange-alt"></i> Changer vue
+                    </button>
+                </h2>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="marginChart"></canvas>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem;">
+                        <span style="width: 12px; height: 12px; background: var(--success); border-radius: 3px;"></span>
+                        <span>Marge ≥ seuil</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem;">
+                        <span style="width: 12px; height: 12px; background: var(--warning); border-radius: 3px;"></span>
+                        <span>Marge proche du seuil</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem;">
+                        <span style="width: 12px; height: 12px; background: var(--danger); border-radius: 3px;"></span>
+                        <span>Marge < seuil</span>
+                    </div>
                 </div>
             </div>
 
@@ -570,6 +798,61 @@
     </div>
 </div>
 
+<!-- EDIT INGREDIENT MODAL -->
+<div id="editIngModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000; backdrop-filter: blur(5px);">
+    <div class="card" style="width: 400px; margin:0; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+        <h2 style="margin-bottom: 20px;">
+            <i class="fas fa-edit" style="color: var(--primary); margin-right: 10px;"></i>
+            Modifier l'ingredient
+        </h2>
+        <div class="form-group">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Nom</label>
+            <input type="text" id="editIngName" placeholder="Nom de l'ingredient">
+        </div>
+        <div class="form-row">
+            <div style="flex:1">
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Prix (€)</label>
+                <input type="number" id="editIngPrice" step="0.01" placeholder="0.00">
+            </div>
+            <div style="flex:1">
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Unite</label>
+                <select id="editIngUnit">
+                    <option value="kg">1 kg</option>
+                    <option value="g">1 g</option>
+                    <option value="L">1 L</option>
+                    <option value="ml">1 ml</option>
+                    <option value="piece">1 piece</option>
+                </select>
+            </div>
+        </div>
+        <input type="hidden" id="editIngId">
+        <div class="flex-between" style="margin-top: 20px;">
+            <button class="btn btn-outline" onclick="closeEditIngModal()">Annuler</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-outline" onclick="showPriceHistory(document.getElementById('editIngId').value)">
+                    <i class="fas fa-history"></i> Historique
+                </button>
+                <button class="btn btn-primary" onclick="saveEditIngredient()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PRICE HISTORY MODAL -->
+<div id="priceHistoryModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1001; backdrop-filter: blur(5px);">
+    <div class="card" style="width: 450px; max-width: 90%; margin:0; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+        <h2 style="margin-bottom: 20px;">
+            <i class="fas fa-chart-line" style="color: var(--primary); margin-right: 10px;"></i>
+            Historique des prix
+        </h2>
+        <p id="priceHistoryIngName" style="font-weight: 600; margin-bottom: 15px; color: var(--primary);"></p>
+        <div id="priceHistoryContent" class="price-history-list"></div>
+        <div class="flex-between" style="margin-top: 20px;">
+            <button class="btn btn-outline" onclick="closePriceHistoryModal()">Fermer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 /* --- CONFIG STORAGE KEY --- */
 const STORAGE_KEY = 'foodCostPro_v3_COMPLETE';
@@ -578,7 +861,7 @@ const STORAGE_KEY = 'foodCostPro_v3_COMPLETE';
 let isSharedMode = false;
 
 /* --- DONNEES INITIALES (COPIE DE TA LISTE) --- */
-let state = { ingredients: [], intermediate: [], final: [] };
+let state = { ingredients: [], intermediate: [], final: [], priceHistory: {}, settings: { marginThreshold: 70 } };
 let activeIntIndex = 0; let activeFinIndex = 0;
 
 const initialData = {
@@ -663,6 +946,8 @@ const initialData = {
         {id: 78, name: "Viande à Bao", price: 12.61, unit: "kg"},
         {id: 79, name: "Vinaigre de Cidre", price: 2.87, unit: "L"}
     ],
+    priceHistory: {},
+    settings: { marginThreshold: 70 },
     intermediate: [
         { id: 'INT_1', name: "Riz au Lait", manualYield: false, yield: 0, yieldUnit: 'g', lossPercent: 0, items: [{id: 61, quantity: 90, unit: 'g'}, {id: 75, quantity: 40, unit: 'g'}, {id: 10, quantity: 40, unit: 'g'}, {id: 20, quantity: 30, unit: 'g'}, {id: 15, quantity: 330, unit: 'ml'}, {id: 35, quantity: 500, unit: 'ml'}, {id: 71, quantity: 1, unit: 'g'}] },
         { id: 'INT_2', name: "Crème Vanille", manualYield: false, yield: 0, yieldUnit: 'g', lossPercent: 0, items: [{id: 10, quantity: 2.5, unit: 'kg'}, {id: 20, quantity: 250, unit: 'g'}, {id: 35, quantity: 3, unit: 'L'}, {id: 15, quantity: 3, unit: 'L'}, {id: 23, quantity: 120, unit: 'g'}] },
@@ -1000,17 +1285,39 @@ function calculateTheoreticalWeight(items) {
 }
 
 function updateDashboard() {
+    // Recuperer le seuil de marge
+    const threshold = state.settings?.marginThreshold ?? 70;
+    const thresholdInput = document.getElementById('marginThreshold');
+    if (thresholdInput) thresholdInput.value = threshold;
+
     let totalHT = 0; let totalCost = 0; let profitableCount = 0;
-    state.final.forEach(r => {
+    const alerts = [];
+
+    state.final.forEach((r, idx) => {
         const cost = calculateCost(r.items);
         const vatRate = parseFloat(r.vat) || 0;
         const priceHT = (parseFloat(r.sellingPrice) || 0) / (1 + (vatRate/100));
         if (priceHT > 0) {
             totalHT += priceHT; totalCost += cost;
             const margin = ((priceHT - cost) / priceHT) * 100;
-            if (margin >= 70) profitableCount++;
+            const fc = (cost / priceHT) * 100;
+            if (margin >= threshold) {
+                profitableCount++;
+            } else {
+                // Ajouter aux alertes
+                alerts.push({
+                    index: idx,
+                    name: r.name,
+                    margin: margin,
+                    fc: fc,
+                    cost: cost,
+                    priceHT: priceHT,
+                    priceTTC: r.sellingPrice
+                });
+            }
         }
     });
+
     const avgMargin = totalHT > 0 ? ((totalHT - totalCost) / totalHT) * 100 : 0;
     const avgFc = totalHT > 0 ? (totalCost / totalHT) * 100 : 0;
     const elMargin = document.getElementById('dash-margin');
@@ -1018,10 +1325,198 @@ function updateDashboard() {
     const elCount = document.getElementById('dash-ok-count');
     if(elMargin) {
         elMargin.innerText = avgMargin.toFixed(1) + '%';
-        elMargin.className = "dash-kpi-val " + (avgMargin >= 70 ? "text-success" : (avgMargin < 60 ? "text-danger" : "text-warning"));
+        elMargin.className = "dash-kpi-val " + (avgMargin >= threshold ? "text-success" : (avgMargin < threshold - 10 ? "text-danger" : "text-warning"));
     }
     if(elFc) elFc.innerText = avgFc.toFixed(1) + '%';
     if(elCount) elCount.innerText = profitableCount + " / " + state.final.length;
+
+    // Afficher les alertes
+    updateMarginAlerts(alerts, threshold);
+
+    // Mettre a jour le graphique
+    updateMarginChart();
+}
+
+function updateMarginThreshold(value) {
+    const threshold = parseInt(value) || 70;
+    if (!state.settings) state.settings = {};
+    state.settings.marginThreshold = threshold;
+    saveData();
+    updateDashboard();
+}
+
+function updateMarginAlerts(alerts, threshold) {
+    const alertsContainer = document.getElementById('marginAlerts');
+    const alertsList = document.getElementById('alertsList');
+
+    if (!alertsContainer || !alertsList) return;
+
+    if (alerts.length === 0) {
+        alertsContainer.classList.add('hidden');
+        return;
+    }
+
+    alertsContainer.classList.remove('hidden');
+
+    // Trier par marge (plus basse en premier)
+    alerts.sort((a, b) => a.margin - b.margin);
+
+    alertsList.innerHTML = alerts.map(alert => `
+        <div class="alert-item">
+            <div>
+                <div class="alert-item-name">${alert.name}</div>
+                <div class="alert-item-details">
+                    Cout: ${alert.cost.toFixed(2)}€ | Prix HT: ${alert.priceHT.toFixed(2)}€ | FC: ${alert.fc.toFixed(1)}%
+                </div>
+            </div>
+            <div style="display:flex; align-items:center;">
+                <div class="alert-item-margin">${alert.margin.toFixed(1)}%</div>
+                <button class="alert-item-btn" onclick="activeFinIndex=${alert.index}; renderFinalRecipes();">
+                    <i class="fas fa-arrow-right"></i> Voir
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+/* --- MARGIN CHART FUNCTIONS --- */
+let marginChart = null;
+let currentChartType = 'bar';
+
+function updateMarginChart() {
+    const canvas = document.getElementById('marginChart');
+    if (!canvas) return;
+
+    const threshold = state.settings?.marginThreshold ?? 70;
+
+    // Preparer les donnees
+    const chartData = state.final.map(r => {
+        const cost = calculateCost(r.items);
+        const vatRate = parseFloat(r.vat) || 0;
+        const priceHT = (parseFloat(r.sellingPrice) || 0) / (1 + (vatRate/100));
+        const margin = priceHT > 0 ? ((priceHT - cost) / priceHT) * 100 : 0;
+        return { name: r.name, margin: margin };
+    });
+
+    // Trier par marge (du plus bas au plus haut)
+    chartData.sort((a, b) => a.margin - b.margin);
+
+    const labels = chartData.map(d => d.name.length > 15 ? d.name.substring(0, 15) + '...' : d.name);
+    const margins = chartData.map(d => d.margin);
+    const colors = chartData.map(d => {
+        if (d.margin >= threshold) return '#10b981'; // success
+        if (d.margin >= threshold - 10) return '#f59e0b'; // warning
+        return '#ef4444'; // danger
+    });
+
+    // Detruire le graphique existant s'il existe
+    if (marginChart) {
+        marginChart.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    if (currentChartType === 'bar') {
+        marginChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Marge (%)',
+                    data: margins,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Marge: ' + context.raw.toFixed(1) + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: '#e2e8f0' },
+                        ticks: {
+                            callback: function(value) { return value + '%'; }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                // Ligne de seuil
+                annotation: {
+                    annotations: {
+                        thresholdLine: {
+                            type: 'line',
+                            yMin: threshold,
+                            yMax: threshold,
+                            borderColor: '#64748b',
+                            borderWidth: 2,
+                            borderDash: [5, 5]
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        // Graphique en donut - repartition des plats
+        const aboveThreshold = chartData.filter(d => d.margin >= threshold).length;
+        const nearThreshold = chartData.filter(d => d.margin >= threshold - 10 && d.margin < threshold).length;
+        const belowThreshold = chartData.filter(d => d.margin < threshold - 10).length;
+
+        marginChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Rentables (≥' + threshold + '%)', 'Proches du seuil', 'Non rentables'],
+                datasets: [{
+                    data: [aboveThreshold, nearThreshold, belowThreshold],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 20, usePointStyle: true }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percent = total > 0 ? ((context.raw / total) * 100).toFixed(1) : 0;
+                                return context.label + ': ' + context.raw + ' plat(s) (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function toggleChartType() {
+    currentChartType = currentChartType === 'bar' ? 'doughnut' : 'bar';
+    updateMarginChart();
 }
 
 function renderIngredients() {
@@ -1031,13 +1526,129 @@ function renderIngredients() {
     state.ingredients.sort((a, b) => a.name.localeCompare(b.name)).filter(i => i.name.toLowerCase().includes(search)).forEach(ing => {
         const div = document.createElement('div');
         div.className = 'ing-item';
-        div.innerHTML = `<div class="ing-details"><span class="ing-name">${ing.name}</span><span class="ing-price">${ing.price.toFixed(2)} € / ${ing.unit}</span></div><button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:transparent" onclick="deleteIngredient(${ing.id})"><i class="fas fa-trash"></i></button>`;
+        const historyCount = getHistoryCount(ing.id);
+        const historyBadge = historyCount > 0 ? `<span class="history-badge" title="${historyCount} modification(s)">${historyCount}</span>` : '';
+        div.innerHTML = `
+            <div class="ing-details">
+                <span class="ing-name">${ing.name}${historyBadge}</span>
+                <span class="ing-price">${ing.price.toFixed(2)} € / ${ing.unit}</span>
+            </div>
+            <div class="ing-actions">
+                <button class="ing-edit-btn" onclick="openEditIngModal(${ing.id})" title="Modifier"><i class="fas fa-pencil-alt"></i></button>
+                <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:transparent" onclick="deleteIngredient(${ing.id})"><i class="fas fa-trash"></i></button>
+            </div>`;
         list.appendChild(div);
     });
 }
 
 function openIngredientModal() { document.getElementById('ingredientModal').style.display = "flex"; }
 function closeIngredientModal() { document.getElementById('ingredientModal').style.display = "none"; }
+
+/* --- EDIT INGREDIENT FUNCTIONS --- */
+function openEditIngModal(id) {
+    const ing = state.ingredients.find(i => i.id === id);
+    if (!ing) return;
+    document.getElementById('editIngId').value = id;
+    document.getElementById('editIngName').value = ing.name;
+    document.getElementById('editIngPrice').value = ing.price;
+    document.getElementById('editIngUnit').value = ing.unit;
+    document.getElementById('editIngModal').style.display = "flex";
+}
+
+function closeEditIngModal() {
+    document.getElementById('editIngModal').style.display = "none";
+}
+
+function saveEditIngredient() {
+    const id = parseInt(document.getElementById('editIngId').value);
+    const name = document.getElementById('editIngName').value;
+    const newPrice = parseFloat(document.getElementById('editIngPrice').value);
+    const unit = document.getElementById('editIngUnit').value;
+
+    const ing = state.ingredients.find(i => i.id === id);
+    if (!ing || !name || isNaN(newPrice)) return;
+
+    // Enregistrer l'historique si le prix a change
+    if (ing.price !== newPrice) {
+        recordPriceChange(id, ing.price, newPrice);
+    }
+
+    // Mettre a jour l'ingredient
+    ing.name = name;
+    ing.price = newPrice;
+    ing.unit = unit;
+
+    saveData();
+    renderAll();
+    closeEditIngModal();
+}
+
+/* --- PRICE HISTORY FUNCTIONS --- */
+function recordPriceChange(ingredientId, oldPrice, newPrice) {
+    if (!state.priceHistory) {
+        state.priceHistory = {};
+    }
+    if (!state.priceHistory[ingredientId]) {
+        state.priceHistory[ingredientId] = [];
+    }
+
+    state.priceHistory[ingredientId].push({
+        date: new Date().toISOString(),
+        oldPrice: oldPrice,
+        newPrice: newPrice
+    });
+}
+
+function showPriceHistory(ingredientId) {
+    const id = parseInt(ingredientId);
+    const ing = state.ingredients.find(i => i.id === id);
+    if (!ing) return;
+
+    document.getElementById('priceHistoryIngName').textContent = ing.name + ' (' + ing.price.toFixed(2) + ' € / ' + ing.unit + ')';
+
+    const history = state.priceHistory && state.priceHistory[id] ? state.priceHistory[id] : [];
+    const contentEl = document.getElementById('priceHistoryContent');
+
+    if (history.length === 0) {
+        contentEl.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-light);"><i class="fas fa-history" style="font-size:2rem; margin-bottom:10px; opacity:0.3;"></i><p>Aucun historique de prix</p><p style="font-size:0.8rem;">Les modifications de prix seront enregistrees ici.</p></div>';
+    } else {
+        // Afficher du plus recent au plus ancien
+        const sortedHistory = [...history].reverse();
+        contentEl.innerHTML = sortedHistory.map((entry, idx) => {
+            const date = new Date(entry.date);
+            const formattedDate = date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+            const change = entry.newPrice - entry.oldPrice;
+            const changePercent = entry.oldPrice > 0 ? ((change / entry.oldPrice) * 100).toFixed(1) : 0;
+            const isUp = change > 0;
+
+            return `
+                <div class="price-history-item">
+                    <div>
+                        <div class="price-history-date">${formattedDate}</div>
+                        <div style="font-size:0.8rem; color:var(--text-light);">
+                            ${entry.oldPrice.toFixed(2)} € → ${entry.newPrice.toFixed(2)} €
+                        </div>
+                    </div>
+                    <div class="price-history-value ${isUp ? 'price-change-up' : 'price-change-down'}">
+                        ${isUp ? '+' : ''}${change.toFixed(2)} €
+                        <span class="price-change-indicator">(${isUp ? '+' : ''}${changePercent}%)</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.getElementById('priceHistoryModal').style.display = "flex";
+}
+
+function closePriceHistoryModal() {
+    document.getElementById('priceHistoryModal').style.display = "none";
+}
+
+function getHistoryCount(ingredientId) {
+    if (!state.priceHistory || !state.priceHistory[ingredientId]) return 0;
+    return state.priceHistory[ingredientId].length;
+}
 
 function saveNewIngredient() {
     const name = document.getElementById('newIngName').value;
@@ -1189,6 +1800,7 @@ function renderIntermediateRecipes() {
         <div style="padding-top:10px;">
              <div class="recipe-header">
                 <input type="text" value="${recipe.name}" oninput="updateRecName('intermediate', ${index}, this.value)" style="font-weight:bold; font-size:1.3rem; width:auto; flex:1; padding:10px;">
+                <button class="btn btn-outline" onclick="duplicateRecipe('intermediate', ${index})" title="Dupliquer cette préparation"><i class="fas fa-copy"></i></button>
                 <button class="btn btn-danger" onclick="deleteRec('intermediate', ${index})"><i class="fas fa-trash"></i></button>
             </div>
             <table>
@@ -1269,6 +1881,7 @@ function renderFinalRecipes() {
         <div style="padding-top:10px;">
             <div class="recipe-header">
                 <input type="text" value="${recipe.name}" oninput="updateRecName('final', ${index}, this.value)" style="font-weight:bold; font-size:1.3rem; color:var(--primary-dark); width:auto; flex:1; padding:10px;">
+                <button class="btn btn-outline" onclick="duplicateRecipe('final', ${index})" title="Dupliquer ce plat"><i class="fas fa-copy"></i></button>
                 <button class="btn btn-danger" onclick="deleteRec('final', ${index})"><i class="fas fa-trash"></i></button>
             </div>
 
@@ -1443,10 +2056,42 @@ function updatePriceFromFC(type, index, targetFC, isDelivery) {
     }
 }
 
-function setManualYield(index) { 
-    state.intermediate[index].manualYield = true; 
-    saveData(); 
-    document.getElementById(`int-badge-${index}`).innerHTML = '<span class="badge badge-manual">Manuel</span>'; 
+function setManualYield(index) {
+    state.intermediate[index].manualYield = true;
+    saveData();
+    document.getElementById(`int-badge-${index}`).innerHTML = '<span class="badge badge-manual">Manuel</span>';
+}
+
+/* --- DUPLICATION DE RECETTES --- */
+function duplicateRecipe(type, index) {
+    const original = state[type][index];
+    // Deep copy de la recette
+    const copy = JSON.parse(JSON.stringify(original));
+
+    // Nouveau ID unique
+    if (type === 'intermediate') {
+        copy.id = 'INT_' + Date.now();
+    } else {
+        copy.id = 'FIN_' + Date.now();
+    }
+
+    // Ajouter "(copie)" au nom
+    copy.name = original.name + ' (copie)';
+
+    // Ajouter la copie à la liste
+    state[type].push(copy);
+
+    // Sélectionner la nouvelle recette
+    if (type === 'intermediate') {
+        activeIntIndex = state.intermediate.length - 1;
+        saveData();
+        renderIntermediateRecipes();
+    } else {
+        activeFinIndex = state.final.length - 1;
+        saveData();
+        renderFinalRecipes();
+        updateDashboard();
+    }
 }
 
 </script>
