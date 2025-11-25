@@ -780,13 +780,11 @@ function shareData() {
     const loadingEl = document.getElementById('shareLoading');
     const resultEl = document.getElementById('shareResult');
     const errorEl = document.getElementById('shareError');
-    const disconnectBtn = document.getElementById('disconnectBtn');
 
     // Reset modal state
     loadingEl.style.display = 'none';
     resultEl.style.display = 'none';
     errorEl.style.display = 'none';
-    disconnectBtn.style.display = 'none';
 
     try {
         // Generate share URL with compressed data
