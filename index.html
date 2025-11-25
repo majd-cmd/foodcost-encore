@@ -574,8 +574,8 @@
 const STORAGE_KEY = 'foodCostPro_v3_COMPLETE';
 const CLOUD_KEY = 'foodCostPro_cloudId';
 
-/* --- CLOUD SYNC CONFIGURATION --- */
-const JSONBLOB_API = 'https://jsonblob.com/api/jsonBlob';
+/* --- CLOUD SYNC CONFIGURATION (ExtendsClass JSON Storage) --- */
+const JSON_STORAGE_API = 'https://json.extendsclass.com/bin';
 let cloudId = null;
 let isSyncing = false;
 let syncTimeout = null;
@@ -774,13 +774,12 @@ function hideSharedBadge() {
     }
 }
 
-async function loadFromCloud(blobId) {
+async function loadFromCloud(shareId) {
     try {
-        const response = await fetch(`${JSONBLOB_API}/${blobId}`, {
+        const response = await fetch(`${JSON_STORAGE_API}/${shareId}`, {
             method: 'GET',
             headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Content-Type': 'application/json'
             }
         });
 
@@ -796,22 +795,26 @@ async function loadFromCloud(blobId) {
 
 async function saveToCloud(data) {
     if (!cloudId) {
-        // Create new blob
+        // Create new bin
         try {
-            const response = await fetch(JSONBLOB_API, {
+            const response = await fetch(JSON_STORAGE_API, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
             });
 
             if (response.ok) {
-                // Get blob ID from location header
-                const location = response.headers.get('Location');
-                if (location) {
-                    cloudId = location.split('/').pop();
+                const result = await response.json();
+                // L'API retourne {uri: "/bin/xxxxx"} ou directement l'ID
+                if (result.uri) {
+                    cloudId = result.uri.replace('/bin/', '');
+                } else if (result.id) {
+                    cloudId = result.id;
+                }
+
+                if (cloudId) {
                     localStorage.setItem(CLOUD_KEY, cloudId);
                     return cloudId;
                 }
@@ -822,13 +825,12 @@ async function saveToCloud(data) {
             return null;
         }
     } else {
-        // Update existing blob
+        // Update existing bin
         try {
-            const response = await fetch(`${JSONBLOB_API}/${cloudId}`, {
+            const response = await fetch(`${JSON_STORAGE_API}/${cloudId}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
             });
