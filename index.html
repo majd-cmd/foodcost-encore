@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calculateur Food Cost Pro - v3.2 STABLE</title>
+    <title>Calculateur Food Cost Pro - v3.3 CLOUD</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
@@ -324,14 +324,116 @@
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); font-style: italic; background: #f8fafc; border-radius: 16px; border: 2px dashed var(--border); }
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
 
+        /* Cloud Sync Styles */
+        .sync-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.1);
+            margin-left: 10px;
+        }
+        .sync-indicator.synced { color: #4ade80; }
+        .sync-indicator.syncing { color: #fbbf24; }
+        .sync-indicator.error { color: #f87171; }
+        .sync-indicator.local { color: #94a3b8; }
+
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        .sync-indicator.syncing .sync-dot {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .share-btn {
+            background: linear-gradient(135deg, #10b981, #059669) !important;
+            border: none !important;
+        }
+        .share-btn:hover {
+            background: linear-gradient(135deg, #059669, #047857) !important;
+        }
+
+        .share-modal-content {
+            text-align: center;
+        }
+        .share-url-container {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .share-url-input {
+            flex: 1;
+            font-size: 0.85rem;
+            background: #f1f5f9;
+            border: 2px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .copy-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            background: var(--primary-dark);
+        }
+        .copy-btn.copied {
+            background: var(--success);
+        }
+
+        .cloud-info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #1e40af;
+        }
+        .cloud-info i {
+            margin-right: 8px;
+        }
+
+        .shared-badge {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 15px;
+        }
+
     </style>
 </head>
 <body>
 
 <header>
     <div class="header-content">
-        <h1><i class="fas fa-chart-pie"></i> FoodCost Pro</h1>
+        <h1>
+            <i class="fas fa-chart-pie"></i> FoodCost Pro
+            <span id="sharedBadge" class="shared-badge hidden"><i class="fas fa-cloud"></i> Cloud</span>
+            <span id="syncIndicator" class="sync-indicator local"><span class="sync-dot"></span> Local</span>
+        </h1>
         <div class="header-actions">
+            <button class="share-btn" onclick="shareData()"><i class="fas fa-share-alt"></i> Partager</button>
             <button onclick="exportData()"><i class="fas fa-download"></i> Sauvegarder</button>
             <button onclick="document.getElementById('fileInput').click()"><i class="fas fa-upload"></i> Charger</button>
             <input type="file" id="fileInput" class="hidden" onchange="importData(this)">
@@ -420,9 +522,63 @@
     </div>
 </div>
 
+<!-- SHARE MODAL -->
+<div id="shareModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000; backdrop-filter: blur(5px);">
+    <div class="card" style="width: 500px; max-width: 90%; margin:0; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+        <div class="share-modal-content">
+            <h2 style="justify-content: center; margin-bottom: 10px;">
+                <i class="fas fa-cloud-upload-alt" style="color: var(--primary); margin-right: 10px;"></i>
+                Partager dans le Cloud
+            </h2>
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Partagez ce lien pour que d'autres puissent voir vos recettes.<br>
+                <strong>Toutes vos modifications seront synchronisees automatiquement.</strong>
+            </p>
+
+            <div id="shareLoading" style="padding: 30px; display: none;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+                <p style="margin-top: 10px; color: var(--text-light);">Creation du lien...</p>
+            </div>
+
+            <div id="shareResult" style="display: none;">
+                <div class="share-url-container">
+                    <input type="text" id="shareUrlInput" class="share-url-input" readonly>
+                    <button class="copy-btn" onclick="copyShareUrl()">
+                        <i class="fas fa-copy"></i> Copier
+                    </button>
+                </div>
+
+                <div class="cloud-info">
+                    <i class="fas fa-info-circle"></i>
+                    Ce lien est maintenant actif. Chaque modification que vous faites sera visible par toute personne ayant ce lien.
+                </div>
+            </div>
+
+            <div id="shareError" style="display: none; color: var(--danger); padding: 20px;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p id="shareErrorMessage">Une erreur est survenue</p>
+            </div>
+        </div>
+
+        <div class="flex-between" style="margin-top: 20px;">
+            <button class="btn btn-outline" onclick="closeShareModal()">Fermer</button>
+            <button class="btn btn-danger" id="disconnectBtn" onclick="disconnectCloud()" style="display: none;">
+                <i class="fas fa-unlink"></i> Deconnecter
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 /* --- CONFIG STORAGE KEY --- */
 const STORAGE_KEY = 'foodCostPro_v3_COMPLETE';
+const CLOUD_KEY = 'foodCostPro_cloudId';
+
+/* --- CLOUD SYNC CONFIGURATION --- */
+const JSONBLOB_API = 'https://jsonblob.com/api/jsonBlob';
+let cloudId = null;
+let isSyncing = false;
+let syncTimeout = null;
 
 /* --- DONNEES INITIALES (COPIE DE TA LISTE) --- */
 let state = { ingredients: [], intermediate: [], final: [] };
@@ -534,13 +690,310 @@ const initialData = {
 };
 
 /* --- INIT --- */
-window.onload = function() {
-    loadData();
+window.onload = async function() {
+    // Check for cloud ID in URL first
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedId = urlParams.get('share');
+
+    if (sharedId) {
+        // Load from cloud
+        cloudId = sharedId;
+        localStorage.setItem(CLOUD_KEY, cloudId);
+        updateSyncIndicator('syncing');
+
+        try {
+            const cloudData = await loadFromCloud(sharedId);
+            if (cloudData) {
+                state = cloudData;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                updateSyncIndicator('synced');
+                showSharedBadge();
+            } else {
+                // Cloud data not found, fallback to local
+                loadData();
+                updateSyncIndicator('error');
+            }
+        } catch (err) {
+            console.error('Error loading cloud data:', err);
+            loadData();
+            updateSyncIndicator('error');
+        }
+    } else {
+        // Check if we have a stored cloud ID
+        const storedCloudId = localStorage.getItem(CLOUD_KEY);
+        if (storedCloudId) {
+            cloudId = storedCloudId;
+            showSharedBadge();
+            // Load local first, then sync from cloud
+            loadData();
+            syncFromCloud();
+        } else {
+            loadData();
+        }
+    }
+
     updateDashboard();
     renderAll();
 };
 
-function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateDashboard(); }
+/* --- CLOUD SYNC FUNCTIONS --- */
+function updateSyncIndicator(status) {
+    const indicator = document.getElementById('syncIndicator');
+    if (!indicator) return;
+
+    indicator.className = 'sync-indicator ' + status;
+
+    switch(status) {
+        case 'synced':
+            indicator.innerHTML = '<span class="sync-dot"></span> Synchronise';
+            break;
+        case 'syncing':
+            indicator.innerHTML = '<span class="sync-dot"></span> Synchronisation...';
+            break;
+        case 'error':
+            indicator.innerHTML = '<span class="sync-dot"></span> Erreur';
+            break;
+        case 'local':
+        default:
+            indicator.innerHTML = '<span class="sync-dot"></span> Local';
+            break;
+    }
+}
+
+function showSharedBadge() {
+    const badge = document.getElementById('sharedBadge');
+    if (badge) {
+        badge.classList.remove('hidden');
+    }
+}
+
+function hideSharedBadge() {
+    const badge = document.getElementById('sharedBadge');
+    if (badge) {
+        badge.classList.add('hidden');
+    }
+}
+
+async function loadFromCloud(blobId) {
+    try {
+        const response = await fetch(`${JSONBLOB_API}/${blobId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+        return null;
+    } catch (err) {
+        console.error('Cloud load error:', err);
+        return null;
+    }
+}
+
+async function saveToCloud(data) {
+    if (!cloudId) {
+        // Create new blob
+        try {
+            const response = await fetch(JSONBLOB_API, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                // Get blob ID from location header
+                const location = response.headers.get('Location');
+                if (location) {
+                    cloudId = location.split('/').pop();
+                    localStorage.setItem(CLOUD_KEY, cloudId);
+                    return cloudId;
+                }
+            }
+            return null;
+        } catch (err) {
+            console.error('Cloud save error:', err);
+            return null;
+        }
+    } else {
+        // Update existing blob
+        try {
+            const response = await fetch(`${JSONBLOB_API}/${cloudId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            return response.ok ? cloudId : null;
+        } catch (err) {
+            console.error('Cloud update error:', err);
+            return null;
+        }
+    }
+}
+
+async function syncFromCloud() {
+    if (!cloudId || isSyncing) return;
+
+    isSyncing = true;
+    updateSyncIndicator('syncing');
+
+    try {
+        const cloudData = await loadFromCloud(cloudId);
+        if (cloudData) {
+            state = cloudData;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            updateDashboard();
+            renderAll();
+            updateSyncIndicator('synced');
+        } else {
+            updateSyncIndicator('error');
+        }
+    } catch (err) {
+        console.error('Sync from cloud error:', err);
+        updateSyncIndicator('error');
+    }
+
+    isSyncing = false;
+}
+
+function syncToCloud() {
+    if (!cloudId) return;
+
+    // Debounce cloud sync
+    if (syncTimeout) {
+        clearTimeout(syncTimeout);
+    }
+
+    updateSyncIndicator('syncing');
+
+    syncTimeout = setTimeout(async () => {
+        try {
+            const result = await saveToCloud(state);
+            if (result) {
+                updateSyncIndicator('synced');
+            } else {
+                updateSyncIndicator('error');
+            }
+        } catch (err) {
+            console.error('Sync to cloud error:', err);
+            updateSyncIndicator('error');
+        }
+    }, 1000); // Wait 1 second after last change before syncing
+}
+
+/* --- SHARE MODAL FUNCTIONS --- */
+function openShareModal() {
+    document.getElementById('shareModal').style.display = "flex";
+}
+
+function closeShareModal() {
+    document.getElementById('shareModal').style.display = "none";
+}
+
+async function shareData() {
+    openShareModal();
+
+    const loadingEl = document.getElementById('shareLoading');
+    const resultEl = document.getElementById('shareResult');
+    const errorEl = document.getElementById('shareError');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+
+    // Reset modal state
+    loadingEl.style.display = 'none';
+    resultEl.style.display = 'none';
+    errorEl.style.display = 'none';
+    disconnectBtn.style.display = 'none';
+
+    if (cloudId) {
+        // Already have a cloud ID, show the URL
+        const shareUrl = `${window.location.origin}${window.location.pathname}?share=${cloudId}`;
+        document.getElementById('shareUrlInput').value = shareUrl;
+        resultEl.style.display = 'block';
+        disconnectBtn.style.display = 'block';
+        return;
+    }
+
+    // Create new cloud save
+    loadingEl.style.display = 'block';
+
+    try {
+        const newCloudId = await saveToCloud(state);
+
+        loadingEl.style.display = 'none';
+
+        if (newCloudId) {
+            cloudId = newCloudId;
+            const shareUrl = `${window.location.origin}${window.location.pathname}?share=${cloudId}`;
+            document.getElementById('shareUrlInput').value = shareUrl;
+            resultEl.style.display = 'block';
+            disconnectBtn.style.display = 'block';
+
+            // Update UI
+            showSharedBadge();
+            updateSyncIndicator('synced');
+
+            // Update URL without reloading
+            window.history.replaceState({}, '', shareUrl);
+        } else {
+            errorEl.style.display = 'block';
+            document.getElementById('shareErrorMessage').textContent = 'Impossible de creer le lien de partage. Verifiez votre connexion internet.';
+        }
+    } catch (err) {
+        loadingEl.style.display = 'none';
+        errorEl.style.display = 'block';
+        document.getElementById('shareErrorMessage').textContent = 'Erreur: ' + err.message;
+    }
+}
+
+function copyShareUrl() {
+    const input = document.getElementById('shareUrlInput');
+    input.select();
+    input.setSelectionRange(0, 99999);
+
+    navigator.clipboard.writeText(input.value).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="fas fa-check"></i> Copie!';
+
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = '<i class="fas fa-copy"></i> Copier';
+        }, 2000);
+    });
+}
+
+function disconnectCloud() {
+    if (confirm('Deconnecter du cloud? Vos donnees resteront en local mais ne seront plus synchronisees.')) {
+        cloudId = null;
+        localStorage.removeItem(CLOUD_KEY);
+        hideSharedBadge();
+        updateSyncIndicator('local');
+
+        // Remove share parameter from URL
+        window.history.replaceState({}, '', window.location.pathname);
+
+        closeShareModal();
+    }
+}
+
+function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    updateDashboard();
+    // Sync to cloud if connected
+    if (cloudId) {
+        syncToCloud();
+    }
+}
 
 function loadData() {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -549,11 +1002,15 @@ function loadData() {
 }
 
 function resetData() {
-    if(confirm("Tout effacer et recharger la carte par défaut ?")) {
+    if(confirm("Tout effacer et recharger la carte par defaut ?")) {
         localStorage.removeItem(STORAGE_KEY);
         state = JSON.parse(JSON.stringify(initialData));
         activeIntIndex = 0; activeFinIndex = 0;
         renderAll();
+        // Sync reset to cloud if connected
+        if (cloudId) {
+            syncToCloud();
+        }
     }
 }
 
