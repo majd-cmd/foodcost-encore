@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculateur Food Cost Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #ec4899;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --border: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding-bottom: 80px;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 1.5rem 1rem;
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.15);
+            margin-bottom: 2rem;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 12px; letter-spacing: -0.025em; }
+        
+        .header-actions button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+        .header-actions button:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        /* Cards & Generic UI */
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            color: var(--text);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+        }
+
+        /* Ingredients Sidebar */
+        .ingredient-list {
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        .ing-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+            transition: background 0.2s;
+            border-radius: 8px;
+        }
+        .ing-item:hover { background-color: #f1f5f9; }
+        .ing-details { display: flex; flex-direction: column; }
+        .ing-name { font-weight: 600; color: var(--text); }
+        .ing-price { font-size: 0.8rem; color: var(--text-light); margin-top: 2px; }
+
+        /* Inputs */
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            background: #f8fafc;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            background: white;
+        }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn-primary { background-color: var(--primary); color: white; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); }
+        .btn-primary:hover { background-color: var(--primary-dark); }
+        .btn-success { background-color: var(--success); color: white; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25); }
+        .btn-danger { background-color: #fee2e2; color: var(--danger); }
+        .btn-danger:hover { background-color: #fecaca; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .btn-sm { padding: 4px 10px; font-size: 0.8rem; height: 28px; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1rem 0; }
+        th { text-align: left; font-size: 0.75rem; text-transform: uppercase; color: var(--text-light); padding: 12px; background: #f8fafc; border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.05em; }
+        td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        tr:last-child td { border-bottom: none; }
+        
+        /* Navigation Tabs */
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .tab-btn {
+            padding: 12px 24px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-light);
+            transition: all 0.2s;
+            flex: 1;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .tab-btn:hover { background: #f8fafc; color: var(--primary); }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        }
+
+        /* Sub Tabs */
+        .sub-tabs-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding-bottom: 5px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .sub-tab {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .sub-tab:hover { border-color: #cbd5e1; }
+        .sub-tab.active {
+            background: #eff6ff;
+            color: var(--primary);
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+        .add-tab-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        .add-tab-btn:hover { transform: scale(1.1); }
+
+        /* --- BENTO GRID SYSTEM --- */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 25px;
+        }
+        @media (max-width: 768px) { .bento-grid { grid-template-columns: 1fr 1fr; } }
+
+        .bento-card {
+            background: #f8fafc; /* Fallback */
+            background: linear-gradient(to bottom right, #ffffff, #f8fafc);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .bento-card.highlight {
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-color: #e2e8f0;
+        }
+
+        .bento-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bento-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .bento-sub {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        /* Actions in Bento */
+        .bento-action {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            opacity: 0.5;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .bento-action:hover {
+            opacity: 1;
+            color: var(--primary);
+            border-color: var(--primary);
+            background: white;
+        }
+
+        /* Progress Bars */
+        .progress-bg {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease-out;
+        }
+
+        /* Colors Classes */
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-danger { color: var(--danger); }
+        .bg-success { background-color: var(--success); }
+        .bg-warning { background-color: var(--warning); }
+        .bg-danger { background-color: var(--danger); }
+
+        /* Specific Bento Items */
+        .bento-span-2 { grid-column: span 2; }
+        .bento-full { grid-column: 1 / -1; }
+
+        /* Platform Section in Bento */
+        .platform-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 0.9rem;
+        }
+        .platform-row:last-child { border-bottom: none; }
+
+        .client-simulation-box {
+            background: #1e293b;
+            color: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .client-simulation-box input {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+            color: white;
+        }
+        .client-simulation-box label { color: #94a3b8; font-size: 0.75rem; }
+
+        .recipe-header { display: flex; gap: 15px; align-items: center; margin-bottom: 20px; }
+        
+        /* Utility */
+        .hidden { display: none; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .badge-auto { background: #dcfce7; color: #15803d; }
+        .badge-manual { background: #fef9c3; color: #a16207; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); font-style: italic; background: #f8fafc; border-radius: 16px; border: 2px dashed var(--border); }
+
+        /* PRINT STYLES */
+        @media print {
+            aside, header, .tabs, .sub-tabs-container, .add-tab-btn, .bento-action, .btn:not(.print-hidden), button {
+                display: none !important;
+            }
+            .container { grid-template-columns: 1fr; padding: 0; }
+            body { background: white; padding: 0; }
+            .card { box-shadow: none; border: none; padding: 0; }
+            .bento-card { border: 1px solid #000; break-inside: avoid; }
+            .recipe-header input { border: none; background: transparent; font-size: 24px; padding: 0; }
+            input, select { border: none; background: transparent; appearance: none; -webkit-appearance: none; padding: 0; font-weight: bold; }
+            table th { background: #eee !important; color: black; }
+            /* Hide specific sections for Kitchen View */
+            .kitchen-view-hidden { display: none !important; }
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-content">
+        <h1><i class="fas fa-chart-pie"></i> FoodCost Pro</h1>
+        <div class="header-actions">
+            <button onclick="exportData()"><i class="fas fa-download"></i> Sauvegarder</button>
+            <button onclick="document.getElementById('fileInput').click()"><i class="fas fa-upload"></i> Charger</button>
+            <input type="file" id="fileInput" class="hidden" onchange="importData(this)">
+            <button onclick="resetData()" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5);">Reset</button>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    
+    <!-- LEFT COLUMN: INGREDIENTS -->
+    <aside>
+        <div class="card" style="height: fit-content; position: sticky; top: 20px;">
+            <h2>
+                Ingrédients 
+                <button class="btn btn-primary btn-sm" onclick="openIngredientModal()">+ Nouveau</button>
+            </h2>
+            <input type="text" id="searchIngredient" placeholder="🔍 Rechercher..." oninput="renderIngredients()" style="margin-bottom: 15px;">
+            
+            <div class="ingredient-list" id="ingredientsList">
+                <!-- Ingredient Items injected here -->
+            </div>
+        </div>
+    </aside>
+
+    <!-- RIGHT COLUMN: RECIPES -->
+    <main>
+        <!-- NAVIGATION PRINCIPALE -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchView('intermediate')" id="btn-view-int">
+                <i class="fas fa-blender"></i> Préparations
+            </button>
+            <button class="tab-btn" onclick="switchView('final')" id="btn-view-final">
+                <i class="fas fa-utensils"></i> Plats
+            </button>
+        </div>
+
+        <!-- INTERMEDIATE RECIPES SECTION -->
+        <div id="view-intermediate">
+            <div class="card">
+                 <div class="sub-tabs-container" id="int-sub-tabs">
+                    <!-- Tabs inserted via JS -->
+                </div>
+                <div id="intermediateRecipeContent">
+                    <!-- Active Recipe Card inserted via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- FINAL RECIPES SECTION -->
+        <div id="view-final" class="hidden">
+             <div class="card">
+                <div class="sub-tabs-container" id="fin-sub-tabs">
+                   <!-- Tabs inserted via JS -->
+               </div>
+               <div id="finalRecipeContent">
+                   <!-- Active Recipe Card inserted via JS -->
+               </div>
+           </div>
+        </div>
+    </main>
+</div>
+
+<!-- MODAL ADD INGREDIENT -->
+<div id="ingredientModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000; backdrop-filter: blur(5px);">
+    <div class="card" style="width: 400px; margin:0; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+        <h2 style="margin-bottom: 20px;">Ajouter Ingrédient</h2>
+        <div class="form-group">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Nom</label>
+            <input type="text" id="newIngName" placeholder="Ex: Tomates Cerises">
+        </div>
+        <div class="form-row">
+            <div style="flex:1">
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Prix (€)</label>
+                <input type="number" id="newIngPrice" step="0.01" placeholder="0.00">
+            </div>
+            <div style="flex:1">
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; display: block;">Pour</label>
+                <select id="newIngUnit">
+                    <option value="kg">1 kg</option>
+                    <option value="g">1 g</option>
+                    <option value="L">1 L</option>
+                    <option value="ml">1 ml</option>
+                    <option value="piece">1 pièce</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex-between" style="margin-top: 20px;">
+            <button class="btn btn-danger" onclick="closeIngredientModal()">Annuler</button>
+            <button class="btn btn-primary" onclick="saveNewIngredient()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TARGET FOOD COST -->
+<div id="targetModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1000; backdrop-filter: blur(5px);">
+    <div class="card" style="width: 350px; margin:0; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+        <h2 style="margin-bottom: 20px;">🎯 Objectif Food Cost</h2>
+        <div class="form-group">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; display: block;">Entrez votre % cible :</label>
+            <input type="number" id="targetInput" placeholder="ex: 25" style="font-size: 1.2rem; font-weight: bold; text-align: center; padding: 15px;">
+        </div>
+        <div class="flex-between" style="margin-top: 20px;">
+            <button class="btn btn-danger" onclick="closeTargetModal()">Annuler</button>
+            <button class="btn btn-primary" onclick="saveTarget()">Valider</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* --- ETAT GLOBAL ET DONNEES --- */
+let state = {
+    ingredients: [],
+    intermediate: [],
+    final: []
+};
+
+let activeIntIndex = 0;
+let activeFinIndex = 0;
+
+// Données d'initialisation
+const initialData = {
+    ingredients: [
+        {id: 1, name: "Ail en Poudre", price: 10.70, unit: "kg"},
+        {id: 2, name: "Ail Semoule", price: 11.17, unit: "kg"},
+        {id: 101, name: "Ail frais", price: 4.94, unit: "kg"},
+        {id: 3, name: "Basilic", price: 1.10, unit: "piece"},
+        {id: 4, name: "Beurre", price: 11.03, unit: "kg"},
+        {id: 5, name: "Blanc d'Oeuf", price: 6.33, unit: "kg"},
+        {id: 6, name: "Buns", price: 0.50, unit: "piece"},
+        {id: 7, name: "Cheddar", price: 0.11, unit: "piece"},
+        {id: 103, name: "Cheddar Blanc", price: 0.11, unit: "piece"},
+        {id: 8, name: "Chocolat Blanc", price: 14.21, unit: "kg"},
+        {id: 9, name: "Coriandre Fraiche", price: 1.20, unit: "piece"},
+        {id: 10, name: "Cornichon", price: 0.01, unit: "kg"}, 
+        {id: 11, name: "Coulis de Chocolat", price: 6.57, unit: "kg"},
+        {id: 12, name: "Cream Cheese", price: 9.48, unit: "kg"},
+        {id: 13, name: "Crème Liquide 35%mg", price: 4.86, unit: "L"},
+        {id: 14, name: "Docello Pistache", price: 38.79, unit: "kg"},
+        {id: 15, name: "Edamame Décortiqué", price: 0.01, unit: "kg"}, 
+        {id: 16, name: "Extrait de Vanille Sebalcé", price: 72.64, unit: "kg"},
+        {id: 17, name: "Farine", price: 0.79, unit: "kg"},
+        {id: 105, name: "Filet de Bœuf", price: 21.00, unit: "kg"},
+        {id: 18, name: "Gélatine Bronze Bovine", price: 47.23, unit: "kg"},
+        {id: 19, name: "Haut de cuisse Jacob", price: 6.47, unit: "kg"},
+        {id: 20, name: "Huile d'Olive", price: 0.01, unit: "kg"}, 
+        {id: 21, name: "Huile de Tournesol", price: 1.79, unit: "L"},
+        {id: 22, name: "Huile de Truffe Blanche", price: 0.01, unit: "L"}, 
+        {id: 23, name: "Huile de Truffe Noire", price: 62.00, unit: "L"}, 
+        {id: 102, name: "Huile Sésame", price: 12.56, unit: "L"},
+        {id: 24, name: "Jaune d'Oeuf", price: 6.42, unit: "kg"},
+        {id: 25, name: "Jus de Citron Metro chef", price: 4.38, unit: "L"},
+        {id: 26, name: "Jus de Veau Lié Métro Chef", price: 16.04, unit: "kg"},
+        {id: 27, name: "Jus de Yuzu Siracuse", price: 51.00, unit: "L"},
+        {id: 28, name: "Ketchup", price: 0.01, unit: "kg"}, 
+        {id: 29, name: "Lait Entier", price: 1.13, unit: "L"},
+        {id: 30, name: "M&M's", price: 0.01, unit: "kg"}, 
+        {id: 31, name: "Merlan de Boeuf", price: 18.00, unit: "kg"},
+        {id: 32, name: "Mini Piment Padron", price: 6.14, unit: "kg"},
+        {id: 33, name: "Moutarde Dijon", price: 2.13, unit: "kg"},
+        {id: 34, name: "Oigon Cébette", price: 0.25, unit: "piece"},
+        {id: 35, name: "Oignon Frit", price: 7.57, unit: "kg"},
+        {id: 36, name: "Pain Bao", price: 0.54, unit: "piece"},
+        {id: 37, name: "Paleron de Boeuf", price: 13.50, unit: "kg"},
+        {id: 38, name: "Paprika Fumé", price: 37.00, unit: "kg"}, 
+        {id: 39, name: "Parmesan en Poudre", price: 23.32, unit: "kg"}, 
+        {id: 40, name: "Pic en Bois", price: 0.01, unit: "piece"}, 
+        {id: 41, name: "Pickles Oigon Rouge", price: 14.92, unit: "kg"},
+        {id: 42, name: "Piment Chiliflakes", price: 0.01, unit: "piece"}, 
+        {id: 43, name: "Piment d'Espelette", price: 111.00, unit: "kg"},
+        {id: 44, name: "Piment Oiseaux", price: 30.08, unit: "kg"},
+        {id: 45, name: "Piment Pilipili Moulu", price: 10.30, unit: "kg"},
+        {id: 46, name: "Ponthier Mangue", price: 9.41, unit: "kg"},
+        {id: 47, name: "Poudre de Gingembre", price: 22.50, unit: "kg"},
+        {id: 48, name: "Poudre d'Olive Sosa", price: 0.01, unit: "kg"}, 
+        {id: 100, name: "Purée de Gingembre", price: 14.65, unit: "kg"},
+        {id: 49, name: "Purée Lutosa", price: 3.30, unit: "kg"},
+        {id: 50, name: "Riz Rond", price: 2.09, unit: "kg"},
+        {id: 51, name: "Romaine", price: 0.50, unit: "piece"},
+        {id: 104, name: "Salade Iceberg", price: 2.00, unit: "kg"},
+        {id: 52, name: "Salade Wakame", price: 11.69, unit: "kg"},
+        {id: 54, name: "Sauce Chipotle", price: 20.00, unit: "kg"},
+        {id: 56, name: "Sauce Soja Salé", price: 8.91, unit: "L"},
+        {id: 57, name: "Sauce Soja Sucré", price: 8.20, unit: "L"},
+        {id: 58, name: "Sauce Sriracha", price: 6.63, unit: "kg"},
+        {id: 60, name: "Sauce Truffe", price: 30.00, unit: "kg"},
+        {id: 61, name: "Sel Fin", price: 0.85, unit: "kg"},
+        {id: 62, name: "Sosa Poudre Fumée", price: 0.01, unit: "kg"}, 
+        {id: 63, name: "Sosa Sésame Noir Crispy", price: 0.01, unit: "kg"}, 
+        {id: 64, name: "Steak Haché Metzger", price: 16.00, unit: "kg"},
+        {id: 65, name: "Sucre", price: 6.29, unit: "kg"},
+        {id: 66, name: "Tartipat Noisette Blanc", price: 0.01, unit: "kg"}, 
+        {id: 67, name: "Tranche Piment Jalapeno", price: 0.02, unit: "piece"},
+        {id: 68, name: "Vinaigre de Cidre", price: 2.87, unit: "L"},
+    ],
+    intermediate: [
+        {
+            id: 'INT_1', name: "Riz au Lait", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 50, quantity: 90, unit: 'g'}, {id: 65, quantity: 40, unit: 'g'}, 
+                {id: 8, quantity: 40, unit: 'g'}, {id: 16, quantity: 30, unit: 'g'},
+                {id: 13, quantity: 330, unit: 'ml'}, {id: 29, quantity: 500, unit: 'ml'}, 
+                {id: 61, quantity: 1, unit: 'g'}
+            ]
+        },
+        {
+            id: 'INT_2', name: "Crème Vanille", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 8, quantity: 2.5, unit: 'kg'}, {id: 16, quantity: 250, unit: 'g'},
+                {id: 29, quantity: 3, unit: 'L'}, {id: 13, quantity: 3, unit: 'L'},
+                {id: 18, quantity: 120, unit: 'g'}
+            ]
+        },
+        {
+            id: 'INT_3', name: "Sauce Dynamite", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 58, quantity: 400, unit: 'g'}, {id: 12, quantity: 300, unit: 'g'},
+                {id: 33, quantity: 100, unit: 'g'}
+            ]
+        },
+        {
+            id: 'INT_4', name: "Sauce Tiger", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 57, quantity: 4, unit: 'L'}, {id: 56, quantity: 0.75, unit: 'L'},
+                {id: 100, quantity: 200, unit: 'g'}, {id: 101, quantity: 500, unit: 'g'},
+                {id: 9, quantity: 15, unit: 'piece'}, {id: 21, quantity: 4, unit: 'L'},
+                {id: 44, quantity: 100, unit: 'g'}, {id: 102, quantity: 1.5, unit: 'L'}
+            ]
+        },
+        {
+            id: 'INT_5', name: "Sauce Yuzu", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 27, quantity: 100, unit: 'ml'}, {id: 12, quantity: 100, unit: 'g'},
+                {id: 23, quantity: 100, unit: 'ml'}, {id: 33, quantity: 50, unit: 'g'}
+            ]
+        },
+        {
+            id: 'INT_6', name: "Purée", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 49, quantity: 7.5, unit: 'kg'}, {id: 29, quantity: 4, unit: 'L'},
+                {id: 4, quantity: 3, unit: 'kg'}, {id: 61, quantity: 90, unit: 'g'},
+                {id: 62, quantity: 90, unit: 'g'}
+            ]
+        },
+        {
+            id: 'INT_7', name: "Viande à Bao", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 37, quantity: 10, unit: 'kg'}, {id: 26, quantity: 500, unit: 'g'},
+                {id: 38, quantity: 500, unit: 'g'}, {id: 'INT_4', quantity: 1, unit: 'L'}
+            ]
+        },
+        {
+            id: 'INT_8', name: "Sauce César", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 33, quantity: 100, unit: 'g'}, {id: 20, quantity: 1, unit: 'L'},
+                {id: 39, quantity: 250, unit: 'g'}, {id: 101, quantity: 4, unit: 'g'}
+            ]
+        },
+        {
+            id: 'INT_9', name: "Mayonnaise Citron", yield: 0, yieldUnit: 'g', manualYield: false,
+            items: [
+                {id: 24, quantity: 200, unit: 'g'}, {id: 33, quantity: 100, unit: 'g'},
+                {id: 21, quantity: 1, unit: 'L'}, {id: 25, quantity: 300, unit: 'ml'},
+                {id: 61, quantity: 50, unit: 'g'}
+            ]
+        }
+    ],
+    final: [
+        {
+            id: 'FIN_1', name: "Dynamite Burger", sellingPrice: 15.00, deliveryPrice: 18.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 6, quantity: 1, unit: 'piece'}, {id: 64, quantity: 120, unit: 'g'},
+                {id: 7, quantity: 3, unit: 'piece'}, {id: 'INT_3', quantity: 40, unit: 'g'},
+                {id: 32, quantity: 10, unit: 'g'}, {id: 41, quantity: 10, unit: 'g'},
+                {id: 34, quantity: 5, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_2', name: "Tiger Burger", sellingPrice: 15.00, deliveryPrice: 18.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 6, quantity: 1, unit: 'piece'}, {id: 64, quantity: 120, unit: 'g'},
+                {id: 7, quantity: 3, unit: 'piece'}, {id: 'INT_4', quantity: 40, unit: 'g'},
+                {id: 58, quantity: 5, unit: 'g'}, {id: 35, quantity: 5, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_3', name: "Yuzu Burger", sellingPrice: 15.00, deliveryPrice: 18.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 6, quantity: 1, unit: 'piece'}, {id: 64, quantity: 120, unit: 'g'},
+                {id: 103, quantity: 3, unit: 'piece'}, {id: 60, quantity: 40, unit: 'g'},
+                {id: 104, quantity: 20, unit: 'g'}, {id: 10, quantity: 10, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_4', name: "Classic", sellingPrice: 15.00, deliveryPrice: 18.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 6, quantity: 1, unit: 'piece'}, {id: 64, quantity: 120, unit: 'g'},
+                {id: 7, quantity: 3, unit: 'piece'}, {id: 28, quantity: 10, unit: 'g'},
+                {id: 33, quantity: 5, unit: 'g'}, {id: 35, quantity: 5, unit: 'g'},
+                {id: 10, quantity: 10, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_5', name: "Boeuf Tiger", sellingPrice: 20.00, deliveryPrice: 24.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 105, quantity: 150, unit: 'g'}, {id: 40, quantity: 1, unit: 'piece'},
+                {id: 'INT_4', quantity: 20, unit: 'g'}, {id: 58, quantity: 5, unit: 'g'},
+                {id: 35, quantity: 5, unit: 'g'}, {id: 34, quantity: 5, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_6', name: "Purée", sellingPrice: 6.00, deliveryPrice: 8.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 'INT_6', quantity: 200, unit: 'g'}, {id: 'INT_4', quantity: 20, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_7', name: "Bao", sellingPrice: 8.00, deliveryPrice: 10.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 36, quantity: 1, unit: 'piece'}, {id: 'INT_7', quantity: 15, unit: 'g'},
+                {id: 'INT_4', quantity: 5, unit: 'g'}, {id: 35, quantity: 10, unit: 'g'},
+                {id: 41, quantity: 5, unit: 'g'}, {id: 34, quantity: 5, unit: 'g'},
+                {id: 58, quantity: 5, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_8', name: "Riz au Lait", sellingPrice: 5.00, deliveryPrice: 7.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 'INT_1', quantity: 80, unit: 'g'}
+            ]
+        },
+        {
+            id: 'FIN_9', name: "Wrap Salad", sellingPrice: 12.00, deliveryPrice: 14.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99,
+            items: [
+                {id: 104, quantity: 200, unit: 'g'},
+                {id: 12, quantity: 40, unit: 'g'},
+                {id: 'INT_9', quantity: 20, unit: 'g'},
+                {id: 35, quantity: 10, unit: 'g'},
+                {id: 15, quantity: 60, unit: 'g'},
+                {id: 39, quantity: 25, unit: 'g'},
+                {id: 48, quantity: 1, unit: 'g'},
+                {id: 42, quantity: 2, unit: 'g'}
+            ]
+        }
+    ]
+};
+
+/* --- INIT --- */
+window.onload = function() {
+    loadData();
+    renderAll();
+};
+
+function saveData() { localStorage.setItem('foodCostPro_v2', JSON.stringify(state)); }
+
+function loadData() {
+    const saved = localStorage.getItem('foodCostPro_v2');
+    if (saved) state = JSON.parse(saved);
+    else state = JSON.parse(JSON.stringify(initialData)); 
+}
+
+function resetData() {
+    if(confirm("Tout effacer et remettre à zéro ?")) {
+        localStorage.removeItem('foodCostPro_v2');
+        state = JSON.parse(JSON.stringify(initialData)); 
+        activeIntIndex = 0; activeFinIndex = 0;
+        renderAll();
+    }
+}
+
+function exportData() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+    const node = document.createElement('a');
+    node.setAttribute("href", dataStr);
+    node.setAttribute("download", "mes_recettes.json");
+    document.body.appendChild(node);
+    node.click();
+    node.remove();
+}
+
+function importData(input) {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            state = JSON.parse(e.target.result);
+            activeIntIndex = 0; activeFinIndex = 0;
+            saveData(); renderAll();
+            console.log("Données importées avec succès !");
+        } catch(err) { 
+            console.error("Erreur lors de la lecture du fichier.", err);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function renderAll() {
+    renderIngredients();
+    renderIntermediateRecipes();
+    renderFinalRecipes();
+}
+
+function switchView(view) {
+    document.getElementById('view-intermediate').classList.add('hidden');
+    document.getElementById('view-final').classList.add('hidden');
+    document.getElementById('btn-view-int').classList.remove('active');
+    document.getElementById('btn-view-final').classList.remove('active');
+    document.getElementById('view-' + view).classList.remove('hidden');
+    document.getElementById('btn-view-' + (view === 'intermediate' ? 'int' : 'final')).classList.add('active');
+}
+
+function switchSubTab(type, index) {
+    if (type === 'intermediate') { activeIntIndex = index; renderIntermediateRecipes(); } 
+    else { activeFinIndex = index; renderFinalRecipes(); }
+}
+
+/* --- CALCULS METIER --- */
+function normalizeUnit(val, unit) {
+    if (unit === 'kg' || unit === 'L') return val * 1000;
+    if (unit === 'cl') return val * 10;
+    if (unit === 'dl') return val * 100;
+    return val; 
+}
+
+function calculateCost(items, visitedIds = new Set()) {
+    let total = 0;
+    items.forEach(item => {
+        let component = state.ingredients.find(i => i.id === item.id);
+        let isInter = false;
+        if (!component) { component = state.intermediate.find(r => r.id === item.id); isInter = true; }
+        if (component) {
+            if (isInter && visitedIds.has(component.id)) return; 
+            let pricePerUnit = 0;
+            if (isInter) {
+                const nextVisited = new Set(visitedIds);
+                nextVisited.add(component.id);
+                const subTotal = calculateCost(component.items, nextVisited);
+                const yieldVal = normalizeUnit(component.yield, component.yieldUnit);
+                pricePerUnit = yieldVal > 0 ? subTotal / yieldVal : 0;
+            } else {
+                if (component.unit === 'kg' || component.unit === 'L') pricePerUnit = component.price / 1000;
+                else if (component.unit === 'g' || component.unit === 'ml') pricePerUnit = component.price; 
+                else if (component.unit === 'cl') pricePerUnit = component.price / 10;
+                else pricePerUnit = component.price; 
+            }
+            let qty = item.quantity;
+            if (item.unit === 'kg' || item.unit === 'L') qty *= 1000;
+            if (item.unit === 'cl') qty *= 10;
+            if (item.unit === 'dl') qty *= 100;
+            total += qty * pricePerUnit;
+        }
+    });
+    return total;
+}
+
+function calculateTheoreticalWeight(items) {
+    let total = 0;
+    items.forEach(item => {
+        if (item.unit === 'piece') return;
+        let qty = item.quantity;
+        if (item.unit === 'kg' || item.unit === 'L') qty *= 1000;
+        if (item.unit === 'cl') qty *= 10;
+        if (item.unit === 'dl') qty *= 100;
+        total += qty;
+    });
+    return total;
+}
+
+/* --- GESTION INGREDIENTS (TRIE PAR ORDRE ALPHABETIQUE) --- */
+function renderIngredients() {
+    const list = document.getElementById('ingredientsList');
+    const search = document.getElementById('searchIngredient').value.toLowerCase();
+    list.innerHTML = '';
+
+    state.ingredients
+        .sort((a, b) => a.name.localeCompare(b.name)) 
+        .filter(i => i.name.toLowerCase().includes(search))
+        .forEach(ing => {
+            const div = document.createElement('div');
+            div.className = 'ing-item';
+            div.innerHTML = `
+                <div class="ing-details">
+                    <span class="ing-name">${ing.name}</span>
+                    <span class="ing-price">${ing.price.toFixed(2)} € / ${ing.unit}</span>
+                </div>
+                <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:transparent" onclick="deleteIngredient(${ing.id})"><i class="fas fa-trash"></i></button>
+            `;
+            list.appendChild(div);
+        });
+}
+
+function openIngredientModal() { document.getElementById('ingredientModal').style.display = "flex"; }
+function closeIngredientModal() { document.getElementById('ingredientModal').style.display = "none"; }
+
+function saveNewIngredient() {
+    const name = document.getElementById('newIngName').value;
+    const price = parseFloat(document.getElementById('newIngPrice').value);
+    const unit = document.getElementById('newIngUnit').value;
+    if(name && !isNaN(price)) {
+        state.ingredients.push({ id: Date.now(), name, price, unit });
+        saveData(); renderAll(); closeIngredientModal();
+    }
+}
+
+function deleteIngredient(id) {
+    if(confirm("Supprimer cet ingrédient ?")) {
+        state.ingredients = state.ingredients.filter(i => i.id !== id);
+        saveData(); renderAll();
+    }
+}
+
+function getIngredientSelectOptions(currentId, excludeRecipeId) {
+    let html = '<option value="">Choisir...</option>';
+    const sortedIng = [...state.ingredients].sort((a,b) => a.name.localeCompare(b.name));
+    html += '<optgroup label="Ingrédients">';
+    sortedIng.forEach(ing => {
+        html += `<option value="${ing.id}" ${ing.id === currentId ? 'selected' : ''}>${ing.name}</option>`;
+    });
+    html += '</optgroup>';
+    
+    if (state.intermediate.length > 0) {
+        const sortedInter = [...state.intermediate].sort((a,b) => a.name.localeCompare(b.name));
+        html += '<optgroup label="Préparations">';
+        sortedInter.forEach(rec => {
+            if (rec.id !== excludeRecipeId) {
+                html += `<option value="${rec.id}" ${rec.id === currentId ? 'selected' : ''}>${rec.name}</option>`;
+            }
+        });
+        html += '</optgroup>';
+    }
+    return html;
+}
+
+/* --- FEATURE: TARGET FOOD COST (AVEC MODALE) --- */
+let currentTargetRecipeIndex = null;
+let currentTargetType = 'global'; // 'global' ou 'delivery'
+
+function setTargetFC(index) {
+    currentTargetRecipeIndex = index;
+    currentTargetType = 'global';
+    document.getElementById('targetInput').value = '';
+    document.getElementById('targetModal').style.display = 'flex';
+    document.getElementById('targetInput').focus();
+}
+
+function setTargetDeliveryFC(index) {
+    currentTargetRecipeIndex = index;
+    currentTargetType = 'delivery';
+    document.getElementById('targetInput').value = '';
+    document.getElementById('targetModal').style.display = 'flex';
+    document.getElementById('targetInput').focus();
+}
+
+function closeTargetModal() {
+    document.getElementById('targetModal').style.display = 'none';
+    currentTargetRecipeIndex = null;
+}
+
+function saveTarget() {
+    const val = document.getElementById('targetInput').value;
+    const targetPercent = parseFloat(val);
+    
+    if (targetPercent && !isNaN(targetPercent) && targetPercent > 0 && currentTargetRecipeIndex !== null) {
+        const recipe = state.final[currentTargetRecipeIndex];
+        const cost = calculateCost(recipe.items, new Set([recipe.id]));
+        
+        if (currentTargetType === 'global') {
+            // Calcul du prix HT nécessaire
+            const newPriceHT = cost / (targetPercent / 100);
+            const newPriceTTC = newPriceHT * (1 + (recipe.vat / 100));
+            
+            // Ratio livraison
+            let deliveryRatio = 1.2; 
+            if (recipe.sellingPrice > 0 && recipe.deliveryPrice > 0) {
+                deliveryRatio = recipe.deliveryPrice / recipe.sellingPrice;
+            }
+            
+            recipe.sellingPrice = parseFloat(newPriceTTC.toFixed(2));
+            recipe.deliveryPrice = parseFloat((newPriceTTC * deliveryRatio).toFixed(2));
+        
+        } else if (currentTargetType === 'delivery') {
+            // Calcul prix livraison
+            const newDelivHT = cost / (targetPercent / 100);
+            const newDelivTTC = newDelivHT * (1 + (recipe.vat / 100));
+            recipe.deliveryPrice = parseFloat(newDelivTTC.toFixed(2));
+        }
+        
+        saveData();
+        renderFinalRecipes();
+        closeTargetModal();
+    }
+}
+
+/* --- PRINT FUNCTION --- */
+function printRecipe() {
+    window.print();
+}
+
+/* --- UPDATES VISUELS "BENTO" --- */
+function updateRecipeCalculations(type, index) {
+    const recipe = state[type][index];
+    const cost = calculateCost(recipe.items, new Set([recipe.id])); 
+    
+    if (type === 'intermediate') {
+        const theoreticalWeight = calculateTheoreticalWeight(recipe.items);
+        if (!recipe.manualYield && recipe.yield !== theoreticalWeight && theoreticalWeight > 0) {
+            recipe.yield = theoreticalWeight;
+            const yieldInput = document.querySelector(`#int-yield-input-${index}`);
+            if(yieldInput) yieldInput.value = recipe.yield;
+        }
+        const yieldG = normalizeUnit(recipe.yield, recipe.yieldUnit);
+        const pricePerKg = yieldG > 0 ? (cost / yieldG) * 1000 : 0;
+
+        const elCost = document.getElementById(`int-cost-${index}`);
+        if(elCost) elCost.innerText = cost.toFixed(2) + ' €';
+        const elWeight = document.getElementById(`int-theo-weight-${index}`);
+        if(elWeight) elWeight.innerHTML = `<strong>${theoreticalWeight.toFixed(0)} g</strong>`;
+        const elPriceKg = document.getElementById(`int-pricekg-${index}`);
+        if(elPriceKg) elPriceKg.innerText = pricePerKg.toFixed(2) + ' € / kg';
+        const elBadge = document.getElementById(`int-badge-${index}`);
+        if(elBadge) elinnerHTML = recipe.manualYield ? '<span class="badge badge-manual">Manuel</span>' : '<span class="badge badge-auto">Auto</span>';
+
+    } else if (type === 'final') {
+        const priceTTC = parseFloat(recipe.sellingPrice) || 0;
+        const vatRate = parseFloat(recipe.vat) || 0;
+        const priceHT = priceTTC / (1 + (vatRate/100));
+        const marginVal = priceHT - cost;
+        const marginPercent = priceHT > 0 ? (marginVal / priceHT) * 100 : 0;
+        const foodCostPercent = priceHT > 0 ? (cost / priceHT) * 100 : 0;
+
+        // Livraison
+        const commPercent = recipe.commission !== undefined ? parseFloat(recipe.commission) : 30;
+        const delivPriceTTC = recipe.deliveryPrice ? parseFloat(recipe.deliveryPrice) : priceTTC;
+        const delivPriceHT = delivPriceTTC / (1 + (vatRate/100));
+        const delivFoodCostPercent = delivPriceHT > 0 ? (cost / delivPriceHT) * 100 : 0;
+        const commAmount = delivPriceTTC * (commPercent / 100);
+        const marginPlatformVal = delivPriceHT - cost - commAmount;
+        const marginPlatformPercent = delivPriceHT > 0 ? (marginPlatformVal / delivPriceHT) * 100 : 0;
+
+        // Sim Client
+        const clientFee = recipe.clientFee !== undefined ? parseFloat(recipe.clientFee) : 2.99;
+        const serviceFee = recipe.serviceFee !== undefined ? parseFloat(recipe.serviceFee) : 1.99;
+        const clientTotal = delivPriceTTC + clientFee + serviceFee;
+
+        // DOM Updates - BENTO
+        document.getElementById(`b-cost-${index}`).innerText = cost.toFixed(2) + ' €';
+        document.getElementById(`b-ht-${index}`).innerText = priceHT.toFixed(2) + ' €';
+        
+        // Marge Bar
+        const mbBar = document.getElementById(`b-margin-bar-${index}`);
+        const mbVal = document.getElementById(`b-margin-val-${index}`);
+        const mbTxt = document.getElementById(`b-margin-txt-${index}`);
+        mbVal.innerText = marginPercent.toFixed(1) + '%';
+        mbTxt.innerText = marginVal.toFixed(2) + ' €';
+        mbBar.style.width = Math.min(marginPercent, 100) + '%';
+        if(marginPercent >= 70) { mbBar.className = 'progress-fill bg-success'; mbVal.className = 'bento-value text-success'; }
+        else if(marginPercent < 60) { mbBar.className = 'progress-fill bg-danger'; mbVal.className = 'bento-value text-danger'; }
+        else { mbBar.className = 'progress-fill bg-warning'; mbVal.className = 'bento-value text-warning'; }
+
+        // FC Bar
+        const fcBar = document.getElementById(`b-fc-bar-${index}`);
+        const fcVal = document.getElementById(`b-fc-val-${index}`);
+        fcVal.innerText = foodCostPercent.toFixed(1) + '%';
+        fcBar.style.width = Math.min(foodCostPercent, 100) + '%';
+        if(foodCostPercent <= 25) { fcBar.className = 'progress-fill bg-success'; fcVal.className = 'bento-value text-success'; }
+        else if(foodCostPercent >= 35) { fcBar.className = 'progress-fill bg-danger'; fcVal.className = 'bento-value text-danger'; }
+        else { fcBar.className = 'progress-fill bg-warning'; fcVal.className = 'bento-value text-warning'; }
+
+        // Delivery Details
+        document.getElementById(`b-deliv-fc-${index}`).innerText = delivFoodCostPercent.toFixed(1) + ' %';
+        document.getElementById(`b-comm-${index}`).innerText = '- ' + commAmount.toFixed(2) + ' €';
+        
+        const netMarginEl = document.getElementById(`b-net-margin-${index}`);
+        netMarginEl.innerText = `${marginPlatformPercent.toFixed(1)}% (${marginPlatformVal.toFixed(2)} €)`;
+        netMarginEl.className = marginPlatformPercent < 30 ? 'text-danger' : (marginPlatformPercent >= 40 ? 'text-success' : 'text-warning');
+        netMarginEl.style.fontWeight = '800';
+        
+        document.getElementById(`b-client-total-${index}`).innerText = clientTotal.toFixed(2) + ' €';
+    }
+}
+
+/* --- RENDER PREPARATIONS --- */
+function renderIntermediateRecipes() {
+    const tabContainer = document.getElementById('int-sub-tabs');
+    const contentContainer = document.getElementById('intermediateRecipeContent');
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-tab-btn'; addBtn.innerHTML = '+'; addBtn.onclick = createIntermediateRecipe;
+    addBtn.title = "Nouvelle préparation";
+
+    tabContainer.innerHTML = '';
+    if(state.intermediate.length === 0) {
+        tabContainer.appendChild(addBtn);
+        contentContainer.innerHTML = `<div class="empty-state">Aucune préparation. Créez vos sauces ou bases ici.</div>`;
+        return;
+    }
+
+    state.intermediate.forEach((recipe, i) => {
+        const tab = document.createElement('button');
+        tab.className = `sub-tab ${i === activeIntIndex ? 'active' : ''}`;
+        tab.innerText = recipe.name;
+        tab.id = `int-tab-label-${i}`;
+        tab.onclick = () => switchSubTab('intermediate', i);
+        tabContainer.appendChild(tab);
+    });
+    tabContainer.appendChild(addBtn);
+
+    if(activeIntIndex >= state.intermediate.length) activeIntIndex = state.intermediate.length - 1;
+    const recipe = state.intermediate[activeIntIndex];
+    const index = activeIntIndex;
+    
+    const cost = calculateCost(recipe.items, new Set([recipe.id]));
+    const theoreticalWeight = calculateTheoreticalWeight(recipe.items);
+    if (!recipe.manualYield && recipe.yield !== theoreticalWeight && theoreticalWeight > 0) recipe.yield = theoreticalWeight;
+    const yieldG = normalizeUnit(recipe.yield, recipe.yieldUnit);
+    const pricePerKg = yieldG > 0 ? (cost / yieldG) * 1000 : 0;
+    const yieldStatus = recipe.manualYield ? '<span class="badge badge-manual">Manuel</span>' : '<span class="badge badge-auto">Auto</span>';
+
+    contentContainer.innerHTML = `
+        <div style="padding-top:10px;">
+             <div class="recipe-header">
+                <input type="text" value="${recipe.name}" oninput="updateRecName('intermediate', ${index}, this.value)" style="font-weight:bold; font-size:1.3rem; width:100%; padding:10px;">
+                <button class="btn btn-primary" onclick="printRecipe()" title="Imprimer Fiche Technique"><i class="fas fa-print"></i></button>
+                <button class="btn btn-danger" onclick="deleteRec('intermediate', ${index})"><i class="fas fa-trash"></i></button>
+            </div>
+            <table>
+                <thead><tr><th>Ingrédient</th><th style="width:100px">Qté</th><th style="width:80px">Unité</th><th style="width:80px" class="kitchen-view-hidden">Coût</th><th class="kitchen-view-hidden"></th></tr></thead>
+                <tbody>
+                    ${recipe.items.map((item, itemIdx) => `
+                        <tr>
+                            <td><select onchange="updateRecItem('intermediate', ${index}, ${itemIdx}, 'id', this.value)">${getIngredientSelectOptions(item.id, recipe.id)}</select></td>
+                            <td><input type="number" step="0.1" value="${item.quantity}" oninput="updateRecItem('intermediate', ${index}, ${itemIdx}, 'quantity', this.value)"></td>
+                            <td><select onchange="updateRecItem('intermediate', ${index}, ${itemIdx}, 'unit', this.value)">
+                                <option value="g" ${item.unit==='g'?'selected':''}>g</option><option value="ml" ${item.unit==='ml'?'selected':''}>ml</option><option value="cl" ${item.unit==='cl'?'selected':''}>cl</option><option value="kg" ${item.unit==='kg'?'selected':''}>kg</option><option value="L" ${item.unit==='L'?'selected':''}>L</option>
+                            </select></td>
+                            <td style="color:var(--text-light)" class="kitchen-view-hidden">...</td>
+                            <td class="kitchen-view-hidden"><button class="btn btn-outline btn-sm" style="color:var(--danger);border:none" onclick="removeRecItem('intermediate', ${index}, ${itemIdx})">✕</button></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <div class="flex-between kitchen-view-hidden" style="margin-bottom:15px;">
+                <button class="btn btn-sm btn-primary" onclick="addRecItem('intermediate', ${index})">+ Ingrédient</button>
+                <div style="font-size:0.85rem; color:var(--text-light);">Poids théorique: <span id="int-theo-weight-${index}"><strong>${theoreticalWeight.toFixed(0)} g</strong></span></div>
+            </div>
+            
+            <div class="recipe-stats kitchen-view-hidden" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="stat-box">
+                    <div class="stat-label">Coût Total</div>
+                    <div class="stat-value" id="int-cost-${index}">${cost.toFixed(2)} €</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Rendement <span id="int-badge-${index}">${yieldStatus}</span></div>
+                    <div style="display:flex; align-items:center; gap:5px; justify-content:center;">
+                        <input type="number" id="int-yield-input-${index}" value="${recipe.yield}" oninput="setManualYield(${index}); updateRecField('intermediate', ${index}, 'yield', this.value)" style="width:80px; text-align:center;">
+                        <select onchange="updateRecField('intermediate', ${index}, 'yieldUnit', this.value)" style="width:60px;"><option value="g" ${recipe.yieldUnit==='g'?'selected':''}>g</option><option value="kg" ${recipe.yieldUnit==='kg'?'selected':''}>kg</option><option value="L" ${recipe.yieldUnit==='L'?'selected':''}>L</option><option value="ml" ${recipe.yieldUnit==='ml'?'selected':''}>ml</option></select>
+                        <button class="btn btn-sm btn-outline" onclick="setAutoYield(${index})">🔄</button>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Coût de revient</div>
+                    <div class="stat-value" style="color:var(--primary)" id="int-pricekg-${index}">${pricePerKg.toFixed(2)} € / kg</div>
+                </div>
+            </div>
+        </div>
+    `;
+    updateRecipeCalculations('intermediate', index);
+}
+
+/* --- RENDER PLATS (BENTO DESIGN) --- */
+function renderFinalRecipes() {
+    const tabContainer = document.getElementById('fin-sub-tabs');
+    const contentContainer = document.getElementById('finalRecipeContent');
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-tab-btn'; addBtn.innerHTML = '+'; addBtn.onclick = createFinalRecipe;
+    addBtn.title = "Nouveau plat";
+
+    tabContainer.innerHTML = '';
+    if(state.final.length === 0) {
+        tabContainer.appendChild(addBtn);
+        contentContainer.innerHTML = `<div class="empty-state">Aucun plat. Cliquez sur + pour commencer.</div>`;
+        return;
+    }
+
+    state.final.forEach((recipe, i) => {
+        const tab = document.createElement('button');
+        tab.className = `sub-tab ${i === activeFinIndex ? 'active' : ''}`;
+        tab.innerText = recipe.name;
+        tab.id = `fin-tab-label-${i}`;
+        tab.onclick = () => switchSubTab('final', i);
+        tabContainer.appendChild(tab);
+    });
+    tabContainer.appendChild(addBtn);
+
+    if(activeFinIndex >= state.final.length) activeFinIndex = state.final.length - 1;
+    const recipe = state.final[activeFinIndex];
+    const index = activeFinIndex;
+
+    // Valeurs initiales
+    const commPercent = recipe.commission !== undefined ? parseFloat(recipe.commission) : 30;
+    const clientFee = recipe.clientFee !== undefined ? parseFloat(recipe.clientFee) : 2.99;
+    const serviceFee = recipe.serviceFee !== undefined ? parseFloat(recipe.serviceFee) : 1.99;
+
+    contentContainer.innerHTML = `
+        <div style="padding-top:10px;">
+            <div class="recipe-header">
+                <input type="text" value="${recipe.name}" oninput="updateRecName('final', ${index}, this.value)" style="font-weight:bold; font-size:1.3rem; color:var(--primary-dark); width:100%; padding:10px;">
+                <button class="btn btn-primary" onclick="printRecipe()" title="Imprimer Fiche Technique"><i class="fas fa-print"></i></button>
+                <button class="btn btn-danger" onclick="deleteRec('final', ${index})"><i class="fas fa-trash"></i></button>
+            </div>
+
+            <!-- INGREDIENTS TABLE -->
+            <div style="margin-bottom: 30px;">
+                <table>
+                    <thead><tr><th>Composant</th><th>Qté</th><th>Unité</th><th class="kitchen-view-hidden">Coût</th><th class="kitchen-view-hidden"></th></tr></thead>
+                    <tbody>
+                        ${recipe.items.map((item, itemIdx) => `
+                            <tr>
+                                <td><select onchange="updateRecItem('final', ${index}, ${itemIdx}, 'id', this.value)">${getIngredientSelectOptions(item.id, null)}</select></td>
+                                <td><input type="number" step="0.1" value="${item.quantity}" oninput="updateRecItem('final', ${index}, ${itemIdx}, 'quantity', this.value)"></td>
+                                <td><select onchange="updateRecItem('final', ${index}, ${itemIdx}, 'unit', this.value)">
+                                    <option value="g" ${item.unit==='g'?'selected':''}>g</option><option value="piece" ${item.unit==='piece'?'selected':''}>pce</option><option value="ml" ${item.unit==='ml'?'selected':''}>ml</option><option value="cl" ${item.unit==='cl'?'selected':''}>cl</option><option value="dl" ${item.unit==='dl'?'selected':''}>dl</option><option value="kg" ${item.unit==='kg'?'selected':''}>kg</option><option value="L" ${item.unit==='L'?'selected':''}>L</option>
+                                </select></td>
+                                <td style="font-size:0.85rem; color:var(--text-light)" class="kitchen-view-hidden">...</td>
+                                <td class="kitchen-view-hidden"><button class="btn btn-outline btn-sm" style="color:var(--danger); border:none" onclick="removeRecItem('final', ${index}, ${itemIdx})">✕</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <button class="btn btn-sm btn-primary kitchen-view-hidden" onclick="addRecItem('final', ${index})">+ Composant</button>
+            </div>
+
+            <h2 class="kitchen-view-hidden" style="margin-bottom:10px; border-bottom:none;">Indicateurs de Rentabilité</h2>
+
+            <!-- PARAMETRES DE VENTE -->
+            <div class="kitchen-view-hidden" style="display:grid; grid-template-columns: 1fr 100px; gap:15px; margin-bottom:15px;">
+                <div class="bento-card highlight" style="flex-direction:row; align-items:center; padding:10px 20px;">
+                    <span style="font-weight:600; margin-right:10px;">Prix Vente Sur Place (TTC)</span>
+                    <input type="number" step="0.1" value="${recipe.sellingPrice}" oninput="updateRecField('final', ${index}, 'sellingPrice', this.value)" style="width:100px; font-weight:bold; font-size:1.1rem;">
+                </div>
+                <div class="bento-card highlight" style="flex-direction:row; align-items:center; padding:10px;">
+                    <span style="font-size:0.8rem; margin-right:5px;">TVA %</span>
+                    <input type="number" value="${recipe.vat}" oninput="updateRecField('final', ${index}, 'vat', this.value)" style="width:50px;">
+                </div>
+            </div>
+
+            <!-- BENTO GRID -->
+            <div class="bento-grid kitchen-view-hidden">
+                
+                <!-- CARD 1: MARGE BRUTE -->
+                <div class="bento-card highlight bento-span-2">
+                    <div class="bento-label"><i class="fas fa-wallet"></i> Marge Brute (Sur place)</div>
+                    <div class="bento-value" id="b-margin-val-${index}">--%</div>
+                    <div class="bento-sub" id="b-margin-txt-${index}">-- €</div>
+                    <div class="progress-bg"><div class="progress-fill" id="b-margin-bar-${index}" style="width:0%"></div></div>
+                </div>
+
+                <!-- CARD 2: FOOD COST -->
+                <div class="bento-card highlight bento-span-2">
+                    <div class="bento-label"><i class="fas fa-chart-pie"></i> Food Cost</div>
+                    <button class="bento-action" onclick="setTargetFC(${index})" title="Définir un objectif">🎯 Cible</button>
+                    <div class="bento-value" id="b-fc-val-${index}">--%</div>
+                    <div class="bento-sub">Objectif < 30%</div>
+                    <div class="progress-bg"><div class="progress-fill" id="b-fc-bar-${index}" style="width:0%"></div></div>
+                </div>
+
+                <!-- CARD 3: COUT MATIERE -->
+                <div class="bento-card">
+                    <div class="bento-label">Coût Matière</div>
+                    <div class="bento-value text-danger" id="b-cost-${index}">-- €</div>
+                </div>
+
+                <!-- CARD 4: PRIX HT -->
+                <div class="bento-card">
+                    <div class="bento-label">Prix HT</div>
+                    <div class="bento-value" id="b-ht-${index}">-- €</div>
+                </div>
+
+                <!-- CARD 5: DELIVERY SIMULATION -->
+                <div class="bento-card bento-span-2" style="background: #1e293b; color:white; border:none;">
+                    <div class="bento-label" style="color:#94a3b8"><i class="fas fa-motorcycle"></i> Simulation Livraison</div>
+                    
+                    <div class="form-row" style="margin: 5px 0;">
+                        <div style="flex:1">
+                            <label style="font-size:0.7rem; color:#cbd5e1;">Prix Livraison (TTC)</label>
+                            <input type="number" value="${recipe.deliveryPrice || recipe.sellingPrice}" oninput="updateRecField('final', ${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); border:none; color:white;">
+                        </div>
+                        <div style="width:70px">
+                            <label style="font-size:0.7rem; color:#cbd5e1;">Comm. %</label>
+                            <input type="number" value="${commPercent}" oninput="updateRecField('final', ${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); border:none; color:white;">
+                        </div>
+                    </div>
+
+                    <div style="margin-top:10px; font-size:0.85rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;">
+                         <div class="platform-row">
+                            <span>Food Cost Liv.</span> 
+                            <strong id="b-deliv-fc-${index}">--%</strong>
+                            <button onclick="setTargetDeliveryFC(${index})" style="background:none;border:none;cursor:pointer;font-size:0.8rem;margin-left:5px;" title="Cible FC Livraison">🎯</button>
+                         </div>
+                         <div class="platform-row"><span>Commission</span> <span class="text-danger" id="b-comm-${index}">-- €</span></div>
+                         <div class="platform-row" style="font-size:1rem; margin-top:5px;"><span>Marge Nette</span> <span id="b-net-margin-${index}">--</span></div>
+                    </div>
+                </div>
+
+                <!-- CARD 6: CLIENT SIMULATION -->
+                <div class="bento-card bento-full" style="background:#f1f5f9; border-style:dashed;">
+                     <div class="bento-label"><i class="fas fa-user"></i> Ce que paie le client (Simulation)</div>
+                     <div class="form-row">
+                        <div style="flex:1"><label style="font-size:0.7rem;">Frais Livraison</label><input type="number" value="${clientFee}" oninput="updateRecField('final', ${index}, 'clientFee', this.value)"></div>
+                        <div style="flex:1"><label style="font-size:0.7rem;">Frais Service</label><input type="number" value="${serviceFee}" oninput="updateRecField('final', ${index}, 'serviceFee', this.value)"></div>
+                        <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end;">
+                            <div style="text-align:right; font-size:1.2rem; font-weight:800; color:var(--text);" id="b-client-total-${index}">-- €</div>
+                        </div>
+                     </div>
+                </div>
+
+            </div>
+        </div>
+    `;
+    updateRecipeCalculations('final', index);
+}
+
+function createIntermediateRecipe() {
+    state.intermediate.push({ id: 'INT_' + Date.now(), name: "Nouvelle Recette", yield: 0, yieldUnit: 'g', items: [], manualYield: false });
+    activeIntIndex = state.intermediate.length - 1;
+    saveData(); renderIntermediateRecipes();
+}
+
+function createFinalRecipe() {
+    state.final.push({ id: 'FIN_' + Date.now(), name: "Nouveau Plat", sellingPrice: 15.00, deliveryPrice: 18.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99, items: [] });
+    activeFinIndex = state.final.length - 1;
+    saveData(); renderFinalRecipes();
+}
+
+/* --- GENERIC HELPERS --- */
+function addRecItem(type, index) {
+    state[type][index].items.push({id: '', quantity: 1, unit: 'g'});
+    saveData();
+    if(type === 'intermediate') renderIntermediateRecipes(); else renderFinalRecipes();
+}
+
+function removeRecItem(type, recIndex, itemIndex) {
+    state[type][recIndex].items.splice(itemIndex, 1);
+    saveData();
+    if(type === 'intermediate') renderIntermediateRecipes(); else renderFinalRecipes();
+}
+
+function deleteRec(type, index) {
+    if(confirm("Supprimer cette recette ?")) {
+        state[type].splice(index, 1);
+        if (type === 'intermediate') { activeIntIndex = Math.max(0, Math.min(activeIntIndex, state.intermediate.length - 1)); renderIntermediateRecipes(); } 
+        else { activeFinIndex = Math.max(0, Math.min(activeFinIndex, state.final.length - 1)); renderFinalRecipes(); }
+        saveData();
+    }
+}
+
+function updateRecName(type, index, val) {
+    state[type][index].name = val; saveData();
+    const prefix = type === 'intermediate' ? 'int' : 'fin';
+    const tab = document.getElementById(`${prefix}-tab-label-${index}`);
+    if(tab) tab.innerText = val;
+}
+
+function updateRecField(type, index, field, val) {
+    state[type][index][field] = parseFloat(val) || val;
+    saveData();
+    updateRecipeCalculations(type, index); 
+}
+
+function updateRecItem(type, recIdx, itemIdx, field, val) {
+    if (field === 'id') val = val.startsWith('INT_') ? val : parseInt(val);
+    else if (field === 'quantity') val = parseFloat(val);
+    state[type][recIdx].items[itemIdx][field] = val;
+    saveData();
+    updateRecipeCalculations(type, recIdx);
+}
+
+function setManualYield(index) { state.intermediate[index].manualYield = true; saveData(); document.getElementById(`int-badge-${index}`).innerHTML = '<span class="badge badge-manual">Manuel</span>'; }
+function setAutoYield(index) { state.intermediate[index].manualYield = false; saveData(); updateRecipeCalculations('intermediate', index); }
+
+</script>
+</body>
+</html>
