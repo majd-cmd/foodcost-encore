@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Calculateur Food Cost Pro - v3.3 CLOUD</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- LZ-String compression library for URL sharing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -527,12 +529,11 @@
     <div class="card" style="width: 500px; max-width: 90%; margin:0; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
         <div class="share-modal-content">
             <h2 style="justify-content: center; margin-bottom: 10px;">
-                <i class="fas fa-cloud-upload-alt" style="color: var(--primary); margin-right: 10px;"></i>
-                Partager dans le Cloud
+                <i class="fas fa-share-alt" style="color: var(--primary); margin-right: 10px;"></i>
+                Partager vos recettes
             </h2>
             <p style="color: var(--text-light); margin-bottom: 20px;">
-                Partagez ce lien pour que d'autres puissent voir vos recettes.<br>
-                <strong>Toutes vos modifications seront synchronisees automatiquement.</strong>
+                Copiez ce lien pour partager vos recettes avec d'autres personnes.
             </p>
 
             <div id="shareLoading" style="padding: 30px; display: none;">
@@ -550,7 +551,7 @@
 
                 <div class="cloud-info">
                     <i class="fas fa-info-circle"></i>
-                    Ce lien est maintenant actif. Chaque modification que vous faites sera visible par toute personne ayant ce lien.
+                    Ce lien contient toutes vos donnees actuelles. Si vous modifiez vos recettes, regenerez un nouveau lien pour partager les modifications.
                 </div>
             </div>
 
@@ -562,8 +563,8 @@
 
         <div class="flex-between" style="margin-top: 20px;">
             <button class="btn btn-outline" onclick="closeShareModal()">Fermer</button>
-            <button class="btn btn-danger" id="disconnectBtn" onclick="disconnectCloud()" style="display: none;">
-                <i class="fas fa-unlink"></i> Deconnecter
+            <button class="btn btn-primary" onclick="shareData()" id="regenerateBtn">
+                <i class="fas fa-sync"></i> Regenerer le lien
             </button>
         </div>
     </div>
@@ -572,13 +573,9 @@
 <script>
 /* --- CONFIG STORAGE KEY --- */
 const STORAGE_KEY = 'foodCostPro_v3_COMPLETE';
-const CLOUD_KEY = 'foodCostPro_cloudId';
 
-/* --- CLOUD SYNC CONFIGURATION (ExtendsClass JSON Storage) --- */
-const JSON_STORAGE_API = 'https://json.extendsclass.com/bin';
-let cloudId = null;
-let isSyncing = false;
-let syncTimeout = null;
+/* --- URL SHARING (no server needed) --- */
+let isSharedMode = false;
 
 /* --- DONNEES INITIALES (COPIE DE TA LISTE) --- */
 let state = { ingredients: [], intermediate: [], final: [] };
@@ -690,46 +687,33 @@ const initialData = {
 };
 
 /* --- INIT --- */
-window.onload = async function() {
-    // Check for cloud ID in URL first
+window.onload = function() {
+    // Check for shared data in URL
     const urlParams = new URLSearchParams(window.location.search);
-    const sharedId = urlParams.get('share');
+    const sharedData = urlParams.get('data');
 
-    if (sharedId) {
-        // Load from cloud
-        cloudId = sharedId;
-        localStorage.setItem(CLOUD_KEY, cloudId);
-        updateSyncIndicator('syncing');
-
+    if (sharedData) {
+        // Decompress and load shared data
         try {
-            const cloudData = await loadFromCloud(sharedId);
-            if (cloudData) {
-                state = cloudData;
+            const decompressed = LZString.decompressFromEncodedURIComponent(sharedData);
+            if (decompressed) {
+                state = JSON.parse(decompressed);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-                updateSyncIndicator('synced');
+                isSharedMode = true;
                 showSharedBadge();
+                updateSyncIndicator('synced');
             } else {
-                // Cloud data not found, fallback to local
                 loadData();
                 updateSyncIndicator('error');
             }
         } catch (err) {
-            console.error('Error loading cloud data:', err);
+            console.error('Error loading shared data:', err);
             loadData();
             updateSyncIndicator('error');
         }
     } else {
-        // Check if we have a stored cloud ID
-        const storedCloudId = localStorage.getItem(CLOUD_KEY);
-        if (storedCloudId) {
-            cloudId = storedCloudId;
-            showSharedBadge();
-            // Load local first, then sync from cloud
-            loadData();
-            syncFromCloud();
-        } else {
-            loadData();
-        }
+        loadData();
+        updateSyncIndicator('local');
     }
 
     updateDashboard();
@@ -774,123 +758,11 @@ function hideSharedBadge() {
     }
 }
 
-async function loadFromCloud(shareId) {
-    try {
-        const response = await fetch(`${JSON_STORAGE_API}/${shareId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (response.ok) {
-            return await response.json();
-        }
-        return null;
-    } catch (err) {
-        console.error('Cloud load error:', err);
-        return null;
-    }
-}
-
-async function saveToCloud(data) {
-    if (!cloudId) {
-        // Create new bin
-        try {
-            const response = await fetch(JSON_STORAGE_API, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                // L'API retourne {uri: "/bin/xxxxx"} ou directement l'ID
-                if (result.uri) {
-                    cloudId = result.uri.replace('/bin/', '');
-                } else if (result.id) {
-                    cloudId = result.id;
-                }
-
-                if (cloudId) {
-                    localStorage.setItem(CLOUD_KEY, cloudId);
-                    return cloudId;
-                }
-            }
-            return null;
-        } catch (err) {
-            console.error('Cloud save error:', err);
-            return null;
-        }
-    } else {
-        // Update existing bin
-        try {
-            const response = await fetch(`${JSON_STORAGE_API}/${cloudId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-
-            return response.ok ? cloudId : null;
-        } catch (err) {
-            console.error('Cloud update error:', err);
-            return null;
-        }
-    }
-}
-
-async function syncFromCloud() {
-    if (!cloudId || isSyncing) return;
-
-    isSyncing = true;
-    updateSyncIndicator('syncing');
-
-    try {
-        const cloudData = await loadFromCloud(cloudId);
-        if (cloudData) {
-            state = cloudData;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-            updateDashboard();
-            renderAll();
-            updateSyncIndicator('synced');
-        } else {
-            updateSyncIndicator('error');
-        }
-    } catch (err) {
-        console.error('Sync from cloud error:', err);
-        updateSyncIndicator('error');
-    }
-
-    isSyncing = false;
-}
-
-function syncToCloud() {
-    if (!cloudId) return;
-
-    // Debounce cloud sync
-    if (syncTimeout) {
-        clearTimeout(syncTimeout);
-    }
-
-    updateSyncIndicator('syncing');
-
-    syncTimeout = setTimeout(async () => {
-        try {
-            const result = await saveToCloud(state);
-            if (result) {
-                updateSyncIndicator('synced');
-            } else {
-                updateSyncIndicator('error');
-            }
-        } catch (err) {
-            console.error('Sync to cloud error:', err);
-            updateSyncIndicator('error');
-        }
-    }, 1000); // Wait 1 second after last change before syncing
+function generateShareUrl() {
+    // Compress state data and create URL
+    const jsonStr = JSON.stringify(state);
+    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
+    return `${window.location.origin}${window.location.pathname}?data=${compressed}`;
 }
 
 /* --- SHARE MODAL FUNCTIONS --- */
@@ -902,7 +774,7 @@ function closeShareModal() {
     document.getElementById('shareModal').style.display = "none";
 }
 
-async function shareData() {
+function shareData() {
     openShareModal();
 
     const loadingEl = document.getElementById('shareLoading');
@@ -916,42 +788,28 @@ async function shareData() {
     errorEl.style.display = 'none';
     disconnectBtn.style.display = 'none';
 
-    if (cloudId) {
-        // Already have a cloud ID, show the URL
-        const shareUrl = `${window.location.origin}${window.location.pathname}?share=${cloudId}`;
+    try {
+        // Generate share URL with compressed data
+        const shareUrl = generateShareUrl();
+
+        // Check URL length (most browsers support ~8000 chars)
+        if (shareUrl.length > 8000) {
+            errorEl.style.display = 'block';
+            document.getElementById('shareErrorMessage').textContent =
+                'Vos donnees sont trop volumineuses pour etre partagees par lien (' +
+                Math.round(shareUrl.length/1000) + 'KB). Utilisez le bouton "Sauvegarder" pour exporter un fichier JSON.';
+            return;
+        }
+
         document.getElementById('shareUrlInput').value = shareUrl;
         resultEl.style.display = 'block';
-        disconnectBtn.style.display = 'block';
-        return;
-    }
 
-    // Create new cloud save
-    loadingEl.style.display = 'block';
+        // Update UI
+        isSharedMode = true;
+        showSharedBadge();
+        updateSyncIndicator('synced');
 
-    try {
-        const newCloudId = await saveToCloud(state);
-
-        loadingEl.style.display = 'none';
-
-        if (newCloudId) {
-            cloudId = newCloudId;
-            const shareUrl = `${window.location.origin}${window.location.pathname}?share=${cloudId}`;
-            document.getElementById('shareUrlInput').value = shareUrl;
-            resultEl.style.display = 'block';
-            disconnectBtn.style.display = 'block';
-
-            // Update UI
-            showSharedBadge();
-            updateSyncIndicator('synced');
-
-            // Update URL without reloading
-            window.history.replaceState({}, '', shareUrl);
-        } else {
-            errorEl.style.display = 'block';
-            document.getElementById('shareErrorMessage').textContent = 'Impossible de creer le lien de partage. Verifiez votre connexion internet.';
-        }
     } catch (err) {
-        loadingEl.style.display = 'none';
         errorEl.style.display = 'block';
         document.getElementById('shareErrorMessage').textContent = 'Erreur: ' + err.message;
     }
@@ -975,9 +833,8 @@ function copyShareUrl() {
 }
 
 function disconnectCloud() {
-    if (confirm('Deconnecter du cloud? Vos donnees resteront en local mais ne seront plus synchronisees.')) {
-        cloudId = null;
-        localStorage.removeItem(CLOUD_KEY);
+    if (confirm('Retourner en mode local? Le lien de partage ne sera plus valide.')) {
+        isSharedMode = false;
         hideSharedBadge();
         updateSyncIndicator('local');
 
@@ -991,9 +848,9 @@ function disconnectCloud() {
 function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     updateDashboard();
-    // Sync to cloud if connected
-    if (cloudId) {
-        syncToCloud();
+    // Note: With URL sharing, user must regenerate link to share updates
+    if (isSharedMode) {
+        updateSyncIndicator('local'); // Indicate data has changed locally
     }
 }
 
@@ -1008,11 +865,11 @@ function resetData() {
         localStorage.removeItem(STORAGE_KEY);
         state = JSON.parse(JSON.stringify(initialData));
         activeIntIndex = 0; activeFinIndex = 0;
+        isSharedMode = false;
+        hideSharedBadge();
+        updateSyncIndicator('local');
+        window.history.replaceState({}, '', window.location.pathname);
         renderAll();
-        // Sync reset to cloud if connected
-        if (cloudId) {
-            syncToCloud();
-        }
     }
 }
 
