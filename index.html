@@ -1363,16 +1363,25 @@ let localVersion = 0;
 /* --- INITIALIZE FIREBASE --- */
 function initFirebase() {
     try {
+        // Vérifier que le SDK Firebase est chargé
+        if (typeof firebase === 'undefined') {
+            console.error('Firebase SDK not loaded');
+            alert('Erreur: Le SDK Firebase n\'est pas chargé. Vérifiez votre connexion internet.');
+            return false;
+        }
+
         if (!firebaseApp) {
             const config = getFirebaseConfig();
+            console.log('Initializing Firebase with config:', config);
             firebaseApp = firebase.initializeApp(config);
             firebaseDb = firebase.database();
+            console.log('Firebase initialized successfully');
         }
         return true;
     } catch (err) {
         console.error('Firebase init error:', err);
         // Afficher le setup Firebase si erreur
-        alert('Erreur de connexion Firebase. Veuillez configurer votre propre projet Firebase.');
+        alert('Erreur de connexion Firebase: ' + err.message + '\n\nVeuillez configurer votre propre projet Firebase.');
         toggleFirebaseSetup();
         return false;
     }
@@ -1467,19 +1476,31 @@ async function connectToCloud() {
     }
 
     if (!initFirebase()) {
-        alert('Erreur de connexion au service cloud. Réessayez plus tard.');
         return;
     }
 
     updateCloudBadgeSyncing(true);
+    console.log('Attempting to connect with code:', code);
+
+    // Timeout après 15 secondes
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout: La connexion prend trop de temps. Vérifiez:\n1. Votre URL Firebase est correcte\n2. Les règles Firebase permettent la lecture')), 15000);
+    });
 
     try {
-        // Vérifier si le code existe
-        const snapshot = await firebaseDb.ref('restaurants/' + code).once('value');
+        // Vérifier si le code existe avec timeout
+        console.log('Fetching from Firebase path: restaurants/' + code);
+        const snapshot = await Promise.race([
+            firebaseDb.ref('restaurants/' + code).once('value'),
+            timeoutPromise
+        ]);
+
+        console.log('Firebase response received, exists:', snapshot.exists());
 
         if (snapshot.exists()) {
             // Code existe, charger les données
             const cloudData = snapshot.val();
+            console.log('Cloud data received:', cloudData);
             if (cloudData.data) {
                 state = JSON.parse(cloudData.data);
                 localVersion = cloudData.version || 0;
@@ -1494,7 +1515,11 @@ async function connectToCloud() {
         }
     } catch (err) {
         console.error('Connect error:', err);
-        alert('Erreur de connexion: ' + err.message);
+        let errorMsg = err.message;
+        if (err.message.includes('PERMISSION_DENIED')) {
+            errorMsg = 'Accès refusé. Vérifiez les règles de sécurité Firebase:\n\n1. Allez dans Firebase Console > Realtime Database > Règles\n2. Définissez:\n{\n  "rules": {\n    ".read": true,\n    ".write": true\n  }\n}';
+        }
+        alert('Erreur de connexion:\n\n' + errorMsg);
     }
 
     updateCloudBadgeSyncing(false);
@@ -1511,15 +1536,24 @@ async function createNewCloud() {
     }
 
     if (!initFirebase()) {
-        alert('Erreur de connexion au service cloud. Réessayez plus tard.');
         return;
     }
 
     updateCloudBadgeSyncing(true);
+    console.log('Creating new cloud with code:', code);
+
+    // Timeout après 15 secondes
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout: La connexion prend trop de temps. Vérifiez:\n1. Votre URL Firebase est correcte\n2. Les règles Firebase permettent l\'écriture')), 15000);
+    });
 
     try {
         // Vérifier si le code existe déjà
-        const snapshot = await firebaseDb.ref('restaurants/' + code).once('value');
+        console.log('Checking if code exists...');
+        const snapshot = await Promise.race([
+            firebaseDb.ref('restaurants/' + code).once('value'),
+            timeoutPromise
+        ]);
 
         if (snapshot.exists()) {
             alert('Ce code existe déjà! Choisissez un autre code ou utilisez "Connecter".');
@@ -1528,19 +1562,28 @@ async function createNewCloud() {
         }
 
         // Créer le nouveau cloud avec les données actuelles
+        console.log('Creating new cloud entry...');
         localVersion = Date.now();
-        await firebaseDb.ref('restaurants/' + code).set({
-            data: JSON.stringify(state),
-            version: localVersion,
-            createdAt: firebase.database.ServerValue.TIMESTAMP,
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
-        });
+        await Promise.race([
+            firebaseDb.ref('restaurants/' + code).set({
+                data: JSON.stringify(state),
+                version: localVersion,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            }),
+            timeoutPromise
+        ]);
 
+        console.log('Cloud created successfully');
         setupCloudConnection(code);
         alert('Cloud créé! Partagez le code "' + code + '" avec vos associés.');
     } catch (err) {
         console.error('Create error:', err);
-        alert('Erreur: ' + err.message);
+        let errorMsg = err.message;
+        if (err.message.includes('PERMISSION_DENIED')) {
+            errorMsg = 'Accès refusé. Vérifiez les règles de sécurité Firebase:\n\n1. Allez dans Firebase Console > Realtime Database > Règles\n2. Définissez:\n{\n  "rules": {\n    ".read": true,\n    ".write": true\n  }\n}';
+        }
+        alert('Erreur:\n\n' + errorMsg);
     }
 
     updateCloudBadgeSyncing(false);
