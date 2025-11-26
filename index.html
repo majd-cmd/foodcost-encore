@@ -1301,12 +1301,10 @@ const CLOUD_CODE_KEY = 'foodCostPro_cloudCode';
 
 /* --- FIREBASE CONFIG --- */
 const FIREBASE_URL_KEY = 'foodCostPro_firebaseUrl';
+const DEFAULT_FIREBASE_URL = 'https://encore-foodcost-default-rtdb.firebaseio.com';
 
-// Recuperer l'URL Firebase sauvegardee ou utiliser la demo
 function getFirebaseUrl() {
-    let url = localStorage.getItem(FIREBASE_URL_KEY) || 'https://foodcost-pro-demo-default-rtdb.europe-west1.firebasedatabase.app';
-    // Nettoyer l'URL (enlever le / final si present)
-    return url.replace(/\/$/, '');
+    return DEFAULT_FIREBASE_URL;
 }
 
 function toggleFirebaseSetup() {
