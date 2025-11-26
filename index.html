@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calculateur Food Cost Pro - v3.4 PRO</title>
+    <title>Calculateur Food Cost Pro - v4.0 CLOUD SYNC</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <!-- LZ-String compression library for URL sharing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <!-- Chart.js for margin visualization -->
@@ -741,6 +744,100 @@
             margin-left: 15px;
         }
 
+        /* Cloud Sync Badge */
+        .cloud-badge {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cloud-badge:hover {
+            transform: scale(1.05);
+        }
+        .cloud-badge.connected {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        .cloud-badge.syncing {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        .cloud-badge .sync-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(0); opacity: 1; }
+            to { transform: translateX(-50%) translateY(20px); opacity: 0; }
+        }
+
+        /* Cloud Modal */
+        .cloud-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .cloud-status.offline {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+        .cloud-status.online {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        .cloud-status i {
+            font-size: 1.5rem;
+        }
+        .restaurant-code-input {
+            font-size: 1.5rem !important;
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .cloud-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .cloud-actions .btn {
+            flex: 1;
+        }
+        .last-sync {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            text-align: center;
+            margin-top: 10px;
+        }
+        .cloud-users {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 10px;
+        }
+        .cloud-users i {
+            color: var(--success);
+        }
+
         /* Price History Styles */
         .price-history-list {
             max-height: 300px;
@@ -870,12 +967,13 @@
     <div class="header-content">
         <h1>
             <i class="fas fa-chart-pie"></i> FoodCost Pro
-            <span id="sharedBadge" class="shared-badge hidden"><i class="fas fa-cloud"></i> Cloud</span>
-            <span id="syncIndicator" class="sync-indicator local"><span class="sync-dot"></span> Local</span>
+            <span id="cloudBadge" class="cloud-badge" onclick="openCloudModal()">
+                <i class="fas fa-cloud" id="cloudIcon"></i> <span id="cloudStatus">Connexion</span>
+            </span>
         </h1>
         <div class="header-actions">
-            <button class="share-btn" onclick="shareData()"><i class="fas fa-share-alt"></i> Partager</button>
-            <button onclick="exportData()"><i class="fas fa-download"></i> Sauvegarder</button>
+            <button class="share-btn" onclick="openCloudModal()"><i class="fas fa-cloud"></i> Cloud</button>
+            <button onclick="exportData()"><i class="fas fa-download"></i> Backup</button>
             <button onclick="document.getElementById('fileInput').click()"><i class="fas fa-upload"></i> Charger</button>
             <input type="file" id="fileInput" class="hidden" onchange="importData(this)">
             <button onclick="resetData()" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5);">Reset</button>
@@ -1110,9 +1208,497 @@
     </div>
 </div>
 
+<!-- CLOUD SYNC MODAL -->
+<div id="cloudModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index:1002; backdrop-filter: blur(5px);">
+    <div class="card" style="width: 450px; max-width: 90%; margin:0; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+        <h2 style="margin-bottom: 20px; justify-content: center;">
+            <i class="fas fa-cloud" style="color: var(--primary); margin-right: 10px;"></i>
+            Synchronisation Cloud
+        </h2>
+
+        <div id="cloudStatusBox" class="cloud-status offline">
+            <i class="fas fa-cloud-slash"></i>
+            <div>
+                <strong>Mode hors-ligne</strong>
+                <div style="font-size: 0.85rem;">Entrez un code pour synchroniser</div>
+            </div>
+        </div>
+
+        <div id="cloudConnectSection">
+            <div id="firebaseSetupSection" style="display: none; margin-bottom: 15px; padding: 12px; background: #fef3c7; border-radius: 10px; font-size: 0.8rem;">
+                <strong><i class="fas fa-info-circle"></i> Configuration Firebase requise</strong>
+                <p style="margin: 8px 0;">Pour activer le cloud, vous devez creer un projet Firebase gratuit:</p>
+                <ol style="margin-left: 20px; line-height: 1.6;">
+                    <li>Allez sur <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
+                    <li>Creez un nouveau projet</li>
+                    <li>Activez "Realtime Database"</li>
+                    <li>Copiez l'URL de la base</li>
+                </ol>
+                <div class="form-group" style="margin-top: 10px;">
+                    <input type="text" id="firebaseUrlInput" placeholder="https://votre-projet.firebaseio.com" style="font-size: 0.8rem;">
+                    <button class="btn btn-primary btn-sm" onclick="saveFirebaseUrl()" style="margin-top: 8px; width: 100%;">
+                        <i class="fas fa-save"></i> Sauvegarder
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">
+                    <i class="fas fa-key"></i> Code Restaurant
+                </label>
+                <input type="text" id="restaurantCodeInput" class="restaurant-code-input" placeholder="EX: RESTO2024" maxlength="20">
+                <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 8px; text-align: center;">
+                    Partagez ce code avec vos associes pour synchroniser les donnees
+                </p>
+            </div>
+
+            <div class="cloud-actions">
+                <button class="btn btn-primary" onclick="connectToCloud()">
+                    <i class="fas fa-plug"></i> Connecter
+                </button>
+                <button class="btn btn-success" onclick="createNewCloud()">
+                    <i class="fas fa-plus"></i> Creer nouveau
+                </button>
+            </div>
+
+            <button class="btn btn-outline btn-sm" onclick="toggleFirebaseSetup()" style="width: 100%; margin-top: 15px;">
+                <i class="fas fa-cog"></i> Configurer Firebase
+            </button>
+        </div>
+
+        <div id="cloudConnectedSection" style="display: none;">
+            <div style="text-align: center; padding: 10px 0;">
+                <div style="font-size: 0.8rem; color: var(--text-light); margin-bottom: 5px;">Code Restaurant</div>
+                <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary); letter-spacing: 3px;" id="connectedCode">-</div>
+            </div>
+
+            <div class="cloud-users" id="cloudUsers">
+                <i class="fas fa-users"></i>
+                <span>Données partagées avec votre équipe</span>
+            </div>
+
+            <div class="last-sync" id="lastSyncTime">
+                Dernière sync: --
+            </div>
+
+            <div class="cloud-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" onclick="forceSync()">
+                    <i class="fas fa-sync"></i> Sync maintenant
+                </button>
+                <button class="btn btn-danger" onclick="disconnectCloud()">
+                    <i class="fas fa-sign-out-alt"></i> Déconnecter
+                </button>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border);">
+            <button class="btn btn-outline" onclick="closeCloudModal()" style="width: 100%;">Fermer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 /* --- CONFIG STORAGE KEY --- */
 const STORAGE_KEY = 'foodCostPro_v3_COMPLETE';
+const CLOUD_CODE_KEY = 'foodCostPro_cloudCode';
+
+/* --- FIREBASE CONFIG --- */
+const FIREBASE_URL_KEY = 'foodCostPro_firebaseUrl';
+
+// Recuperer l'URL Firebase sauvegardee ou utiliser la demo
+function getFirebaseUrl() {
+    return localStorage.getItem(FIREBASE_URL_KEY) || 'https://foodcost-pro-demo-default-rtdb.europe-west1.firebasedatabase.app';
+}
+
+function getFirebaseConfig() {
+    const url = getFirebaseUrl();
+    // Extraire le project ID de l'URL
+    const match = url.match(/https:\/\/([^.]+)/);
+    const projectId = match ? match[1] : 'foodcost-pro-demo';
+
+    return {
+        databaseURL: url,
+        projectId: projectId
+    };
+}
+
+function toggleFirebaseSetup() {
+    const section = document.getElementById('firebaseSetupSection');
+    section.style.display = section.style.display === 'none' ? 'block' : 'none';
+
+    // Pre-remplir avec l'URL existante
+    const savedUrl = localStorage.getItem(FIREBASE_URL_KEY);
+    if (savedUrl) {
+        document.getElementById('firebaseUrlInput').value = savedUrl;
+    }
+}
+
+function saveFirebaseUrl() {
+    const url = document.getElementById('firebaseUrlInput').value.trim();
+    if (!url || !url.includes('firebaseio.com') && !url.includes('firebasedatabase.app')) {
+        alert('Veuillez entrer une URL Firebase valide');
+        return;
+    }
+
+    localStorage.setItem(FIREBASE_URL_KEY, url);
+
+    // Reinitialiser Firebase avec la nouvelle URL
+    firebaseApp = null;
+    firebaseDb = null;
+
+    alert('URL Firebase sauvegardee! Vous pouvez maintenant vous connecter.');
+    document.getElementById('firebaseSetupSection').style.display = 'none';
+}
+
+/* --- CLOUD SYNC VARIABLES --- */
+let isCloudConnected = false;
+let cloudCode = null;
+let firebaseApp = null;
+let firebaseDb = null;
+let cloudListener = null;
+let lastSyncTime = null;
+let syncInProgress = false;
+let localVersion = 0;
+
+/* --- INITIALIZE FIREBASE --- */
+function initFirebase() {
+    try {
+        if (!firebaseApp) {
+            const config = getFirebaseConfig();
+            firebaseApp = firebase.initializeApp(config);
+            firebaseDb = firebase.database();
+        }
+        return true;
+    } catch (err) {
+        console.error('Firebase init error:', err);
+        // Afficher le setup Firebase si erreur
+        alert('Erreur de connexion Firebase. Veuillez configurer votre propre projet Firebase.');
+        toggleFirebaseSetup();
+        return false;
+    }
+}
+
+/* --- CLOUD MODAL FUNCTIONS --- */
+function openCloudModal() {
+    document.getElementById('cloudModal').style.display = 'flex';
+    updateCloudModalUI();
+}
+
+function closeCloudModal() {
+    document.getElementById('cloudModal').style.display = 'none';
+}
+
+function updateCloudModalUI() {
+    const statusBox = document.getElementById('cloudStatusBox');
+    const connectSection = document.getElementById('cloudConnectSection');
+    const connectedSection = document.getElementById('cloudConnectedSection');
+    const badge = document.getElementById('cloudBadge');
+    const badgeStatus = document.getElementById('cloudStatus');
+    const badgeIcon = document.getElementById('cloudIcon');
+
+    if (isCloudConnected && cloudCode) {
+        // Mode connecté
+        statusBox.className = 'cloud-status online';
+        statusBox.innerHTML = `
+            <i class="fas fa-cloud-check"></i>
+            <div>
+                <strong>Connecté au cloud</strong>
+                <div style="font-size: 0.85rem;">Synchronisation automatique active</div>
+            </div>
+        `;
+        connectSection.style.display = 'none';
+        connectedSection.style.display = 'block';
+        document.getElementById('connectedCode').textContent = cloudCode.toUpperCase();
+
+        // Update badge
+        badge.className = 'cloud-badge connected';
+        badgeStatus.textContent = cloudCode.toUpperCase();
+        badgeIcon.className = 'fas fa-cloud-check';
+
+        // Update last sync time
+        if (lastSyncTime) {
+            document.getElementById('lastSyncTime').textContent =
+                'Dernière sync: ' + new Date(lastSyncTime).toLocaleTimeString('fr-FR');
+        }
+    } else {
+        // Mode déconnecté
+        statusBox.className = 'cloud-status offline';
+        statusBox.innerHTML = `
+            <i class="fas fa-cloud-slash"></i>
+            <div>
+                <strong>Mode hors-ligne</strong>
+                <div style="font-size: 0.85rem;">Entrez un code pour synchroniser</div>
+            </div>
+        `;
+        connectSection.style.display = 'block';
+        connectedSection.style.display = 'none';
+
+        // Update badge
+        badge.className = 'cloud-badge';
+        badgeStatus.textContent = 'Connexion';
+        badgeIcon.className = 'fas fa-cloud';
+    }
+}
+
+function updateCloudBadgeSyncing(syncing) {
+    const badge = document.getElementById('cloudBadge');
+    const badgeIcon = document.getElementById('cloudIcon');
+
+    if (syncing) {
+        badge.classList.add('syncing');
+        badgeIcon.className = 'fas fa-sync sync-spin';
+    } else {
+        badge.classList.remove('syncing');
+        if (isCloudConnected) {
+            badge.className = 'cloud-badge connected';
+            badgeIcon.className = 'fas fa-cloud-check';
+        }
+    }
+}
+
+/* --- CLOUD CONNECTION --- */
+async function connectToCloud() {
+    const codeInput = document.getElementById('restaurantCodeInput');
+    const code = codeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    if (!code || code.length < 3) {
+        alert('Veuillez entrer un code valide (minimum 3 caractères)');
+        return;
+    }
+
+    if (!initFirebase()) {
+        alert('Erreur de connexion au service cloud. Réessayez plus tard.');
+        return;
+    }
+
+    updateCloudBadgeSyncing(true);
+
+    try {
+        // Vérifier si le code existe
+        const snapshot = await firebaseDb.ref('restaurants/' + code).once('value');
+
+        if (snapshot.exists()) {
+            // Code existe, charger les données
+            const cloudData = snapshot.val();
+            if (cloudData.data) {
+                state = JSON.parse(cloudData.data);
+                localVersion = cloudData.version || 0;
+                saveData(); // Sauvegarder en local
+                renderAll();
+                updateDashboard();
+            }
+            setupCloudConnection(code);
+            alert('Connecté! Données synchronisées depuis le cloud.');
+        } else {
+            alert('Code non trouvé. Utilisez "Créer nouveau" pour créer un nouveau cloud.');
+        }
+    } catch (err) {
+        console.error('Connect error:', err);
+        alert('Erreur de connexion: ' + err.message);
+    }
+
+    updateCloudBadgeSyncing(false);
+}
+
+async function createNewCloud() {
+    const codeInput = document.getElementById('restaurantCodeInput');
+    let code = codeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    if (!code || code.length < 3) {
+        // Générer un code aléatoire
+        code = 'R' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        codeInput.value = code;
+    }
+
+    if (!initFirebase()) {
+        alert('Erreur de connexion au service cloud. Réessayez plus tard.');
+        return;
+    }
+
+    updateCloudBadgeSyncing(true);
+
+    try {
+        // Vérifier si le code existe déjà
+        const snapshot = await firebaseDb.ref('restaurants/' + code).once('value');
+
+        if (snapshot.exists()) {
+            alert('Ce code existe déjà! Choisissez un autre code ou utilisez "Connecter".');
+            updateCloudBadgeSyncing(false);
+            return;
+        }
+
+        // Créer le nouveau cloud avec les données actuelles
+        localVersion = Date.now();
+        await firebaseDb.ref('restaurants/' + code).set({
+            data: JSON.stringify(state),
+            version: localVersion,
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        setupCloudConnection(code);
+        alert('Cloud créé! Partagez le code "' + code + '" avec vos associés.');
+    } catch (err) {
+        console.error('Create error:', err);
+        alert('Erreur: ' + err.message);
+    }
+
+    updateCloudBadgeSyncing(false);
+}
+
+function setupCloudConnection(code) {
+    cloudCode = code;
+    isCloudConnected = true;
+    lastSyncTime = Date.now();
+
+    // Sauvegarder le code en local
+    localStorage.setItem(CLOUD_CODE_KEY, code);
+
+    // Écouter les changements en temps réel
+    if (cloudListener) {
+        cloudListener.off();
+    }
+
+    cloudListener = firebaseDb.ref('restaurants/' + code);
+    cloudListener.on('value', (snapshot) => {
+        if (syncInProgress) return;
+
+        const cloudData = snapshot.val();
+        if (cloudData && cloudData.version > localVersion) {
+            // Nouvelles données du cloud
+            syncInProgress = true;
+            state = JSON.parse(cloudData.data);
+            localVersion = cloudData.version;
+            lastSyncTime = Date.now();
+            saveData();
+            renderAll();
+            updateDashboard();
+            updateCloudModalUI();
+            syncInProgress = false;
+
+            // Notification discrète
+            showSyncNotification('Données mises à jour');
+        }
+    });
+
+    updateCloudModalUI();
+}
+
+function disconnectCloud() {
+    if (confirm('Déconnecter du cloud? Les données locales seront conservées.')) {
+        if (cloudListener) {
+            cloudListener.off();
+            cloudListener = null;
+        }
+        cloudCode = null;
+        isCloudConnected = false;
+        localStorage.removeItem(CLOUD_CODE_KEY);
+        updateCloudModalUI();
+    }
+}
+
+async function forceSync() {
+    if (!isCloudConnected || !cloudCode) return;
+
+    updateCloudBadgeSyncing(true);
+
+    try {
+        const snapshot = await firebaseDb.ref('restaurants/' + cloudCode).once('value');
+        if (snapshot.exists()) {
+            const cloudData = snapshot.val();
+            if (cloudData.data) {
+                state = JSON.parse(cloudData.data);
+                localVersion = cloudData.version || 0;
+                lastSyncTime = Date.now();
+                saveData();
+                renderAll();
+                updateDashboard();
+                updateCloudModalUI();
+                showSyncNotification('Synchronisation réussie');
+            }
+        }
+    } catch (err) {
+        console.error('Force sync error:', err);
+        alert('Erreur de synchronisation: ' + err.message);
+    }
+
+    updateCloudBadgeSyncing(false);
+}
+
+async function saveToCloud() {
+    if (!isCloudConnected || !cloudCode || syncInProgress) return;
+
+    syncInProgress = true;
+    updateCloudBadgeSyncing(true);
+
+    try {
+        localVersion = Date.now();
+        await firebaseDb.ref('restaurants/' + cloudCode).update({
+            data: JSON.stringify(state),
+            version: localVersion,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        lastSyncTime = Date.now();
+    } catch (err) {
+        console.error('Save to cloud error:', err);
+    }
+
+    syncInProgress = false;
+    updateCloudBadgeSyncing(false);
+}
+
+function showSyncNotification(message) {
+    // Créer une notification discrète
+    const notif = document.createElement('div');
+    notif.style.cssText = `
+        position: fixed;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--success);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        z-index: 9999;
+        animation: slideUp 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    `;
+    notif.innerHTML = '<i class="fas fa-check-circle"></i> ' + message;
+    document.body.appendChild(notif);
+
+    setTimeout(() => {
+        notif.style.animation = 'slideDown 0.3s ease';
+        setTimeout(() => notif.remove(), 300);
+    }, 2000);
+}
+
+/* --- AUTO-RECONNECT ON LOAD --- */
+function tryAutoReconnect() {
+    const savedCode = localStorage.getItem(CLOUD_CODE_KEY);
+    if (savedCode && initFirebase()) {
+        // Tenter de se reconnecter automatiquement
+        firebaseDb.ref('restaurants/' + savedCode).once('value')
+            .then(snapshot => {
+                if (snapshot.exists()) {
+                    const cloudData = snapshot.val();
+                    if (cloudData.data) {
+                        state = JSON.parse(cloudData.data);
+                        localVersion = cloudData.version || 0;
+                        saveData();
+                        renderAll();
+                        updateDashboard();
+                    }
+                    setupCloudConnection(savedCode);
+                }
+            })
+            .catch(err => {
+                console.error('Auto-reconnect failed:', err);
+                localStorage.removeItem(CLOUD_CODE_KEY);
+            });
+    }
+}
 
 /* --- URL SHARING (no server needed) --- */
 let isSharedMode = false;
@@ -1230,36 +1816,35 @@ const initialData = {
 
 /* --- INIT --- */
 window.onload = function() {
-    // Check for shared data in URL
+    // Check for shared data in URL first
     const urlParams = new URLSearchParams(window.location.search);
     const sharedData = urlParams.get('data');
 
     if (sharedData) {
-        // Decompress and load shared data
+        // Decompress and load shared data from URL
         try {
             const decompressed = LZString.decompressFromEncodedURIComponent(sharedData);
             if (decompressed) {
                 state = JSON.parse(decompressed);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-                isSharedMode = true;
-                showSharedBadge();
-                updateSyncIndicator('synced');
             } else {
                 loadData();
-                updateSyncIndicator('error');
             }
         } catch (err) {
             console.error('Error loading shared data:', err);
             loadData();
-            updateSyncIndicator('error');
         }
     } else {
         loadData();
-        updateSyncIndicator('local');
     }
 
     updateDashboard();
     renderAll();
+
+    // Essayer de se reconnecter au cloud automatiquement
+    setTimeout(() => {
+        tryAutoReconnect();
+    }, 500);
 };
 
 /* --- CLOUD SYNC FUNCTIONS --- */
@@ -1388,9 +1973,10 @@ function disconnectCloud() {
 function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     updateDashboard();
-    // Note: With URL sharing, user must regenerate link to share updates
-    if (isSharedMode) {
-        updateSyncIndicator('local'); // Indicate data has changed locally
+
+    // Synchroniser avec le cloud si connecté
+    if (isCloudConnected) {
+        saveToCloud();
     }
 }
 
