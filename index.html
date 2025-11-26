@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Calculateur Food Cost Pro - v4.0 CLOUD SYNC</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <!-- LZ-String compression library for URL sharing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <!-- Chart.js for margin visualization -->
@@ -1307,19 +1304,9 @@ const FIREBASE_URL_KEY = 'foodCostPro_firebaseUrl';
 
 // Recuperer l'URL Firebase sauvegardee ou utiliser la demo
 function getFirebaseUrl() {
-    return localStorage.getItem(FIREBASE_URL_KEY) || 'https://foodcost-pro-demo-default-rtdb.europe-west1.firebasedatabase.app';
-}
-
-function getFirebaseConfig() {
-    const url = getFirebaseUrl();
-    // Extraire le project ID de l'URL
-    const match = url.match(/https:\/\/([^.]+)/);
-    const projectId = match ? match[1] : 'foodcost-pro-demo';
-
-    return {
-        databaseURL: url,
-        projectId: projectId
-    };
+    let url = localStorage.getItem(FIREBASE_URL_KEY) || 'https://foodcost-pro-demo-default-rtdb.europe-west1.firebasedatabase.app';
+    // Nettoyer l'URL (enlever le / final si present)
+    return url.replace(/\/$/, '');
 }
 
 function toggleFirebaseSetup() {
@@ -1353,30 +1340,10 @@ function saveFirebaseUrl() {
 /* --- CLOUD SYNC VARIABLES --- */
 let isCloudConnected = false;
 let cloudCode = null;
-let firebaseApp = null;
-let firebaseDb = null;
-let cloudListener = null;
+let cloudPollInterval = null;
 let lastSyncTime = null;
 let syncInProgress = false;
 let localVersion = 0;
-
-/* --- INITIALIZE FIREBASE --- */
-function initFirebase() {
-    try {
-        if (!firebaseApp) {
-            const config = getFirebaseConfig();
-            firebaseApp = firebase.initializeApp(config);
-            firebaseDb = firebase.database();
-        }
-        return true;
-    } catch (err) {
-        console.error('Firebase init error:', err);
-        // Afficher le setup Firebase si erreur
-        alert('Erreur de connexion Firebase. Veuillez configurer votre propre projet Firebase.');
-        toggleFirebaseSetup();
-        return false;
-    }
-}
 
 /* --- CLOUD MODAL FUNCTIONS --- */
 function openCloudModal() {
@@ -1456,7 +1423,7 @@ function updateCloudBadgeSyncing(syncing) {
     }
 }
 
-/* --- CLOUD CONNECTION --- */
+/* --- CLOUD CONNECTION (REST API) --- */
 async function connectToCloud() {
     const codeInput = document.getElementById('restaurantCodeInput');
     const code = codeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1466,24 +1433,29 @@ async function connectToCloud() {
         return;
     }
 
-    if (!initFirebase()) {
-        alert('Erreur de connexion au service cloud. Réessayez plus tard.');
-        return;
-    }
-
     updateCloudBadgeSyncing(true);
+    console.log('Attempting to connect with code:', code);
 
     try {
-        // Vérifier si le code existe
-        const snapshot = await firebaseDb.ref('restaurants/' + code).once('value');
+        const baseUrl = getFirebaseUrl();
+        const url = `${baseUrl}/restaurants/${code}.json`;
+        console.log('Fetching:', url);
 
-        if (snapshot.exists()) {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const cloudData = await response.json();
+        console.log('Cloud data received:', cloudData);
+
+        if (cloudData) {
             // Code existe, charger les données
-            const cloudData = snapshot.val();
             if (cloudData.data) {
                 state = JSON.parse(cloudData.data);
                 localVersion = cloudData.version || 0;
-                saveData(); // Sauvegarder en local
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); // Sauvegarder en local sans trigger cloud
                 renderAll();
                 updateDashboard();
             }
@@ -1494,7 +1466,7 @@ async function connectToCloud() {
         }
     } catch (err) {
         console.error('Connect error:', err);
-        alert('Erreur de connexion: ' + err.message);
+        alert('Erreur de connexion:\n\n' + err.message);
     }
 
     updateCloudBadgeSyncing(false);
@@ -1510,37 +1482,49 @@ async function createNewCloud() {
         codeInput.value = code;
     }
 
-    if (!initFirebase()) {
-        alert('Erreur de connexion au service cloud. Réessayez plus tard.');
-        return;
-    }
-
     updateCloudBadgeSyncing(true);
+    console.log('Creating new cloud with code:', code);
 
     try {
-        // Vérifier si le code existe déjà
-        const snapshot = await firebaseDb.ref('restaurants/' + code).once('value');
+        const baseUrl = getFirebaseUrl();
 
-        if (snapshot.exists()) {
+        // Vérifier si le code existe déjà
+        console.log('Checking if code exists...');
+        const checkResponse = await fetch(`${baseUrl}/restaurants/${code}.json`);
+        const existingData = await checkResponse.json();
+
+        if (existingData) {
             alert('Ce code existe déjà! Choisissez un autre code ou utilisez "Connecter".');
             updateCloudBadgeSyncing(false);
             return;
         }
 
         // Créer le nouveau cloud avec les données actuelles
+        console.log('Creating new cloud entry...');
         localVersion = Date.now();
-        await firebaseDb.ref('restaurants/' + code).set({
+        const newData = {
             data: JSON.stringify(state),
             version: localVersion,
-            createdAt: firebase.database.ServerValue.TIMESTAMP,
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        const response = await fetch(`${baseUrl}/restaurants/${code}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newData)
         });
 
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        console.log('Cloud created successfully');
         setupCloudConnection(code);
         alert('Cloud créé! Partagez le code "' + code + '" avec vos associés.');
     } catch (err) {
         console.error('Create error:', err);
-        alert('Erreur: ' + err.message);
+        alert('Erreur:\n\n' + err.message);
     }
 
     updateCloudBadgeSyncing(false);
@@ -1554,41 +1538,47 @@ function setupCloudConnection(code) {
     // Sauvegarder le code en local
     localStorage.setItem(CLOUD_CODE_KEY, code);
 
-    // Écouter les changements en temps réel
-    if (cloudListener) {
-        cloudListener.off();
+    // Polling toutes les 10 secondes pour les changements
+    if (cloudPollInterval) {
+        clearInterval(cloudPollInterval);
     }
 
-    cloudListener = firebaseDb.ref('restaurants/' + code);
-    cloudListener.on('value', (snapshot) => {
-        if (syncInProgress) return;
+    cloudPollInterval = setInterval(async () => {
+        if (syncInProgress || !isCloudConnected) return;
 
-        const cloudData = snapshot.val();
-        if (cloudData && cloudData.version > localVersion) {
-            // Nouvelles données du cloud
-            syncInProgress = true;
-            state = JSON.parse(cloudData.data);
-            localVersion = cloudData.version;
-            lastSyncTime = Date.now();
-            saveData();
-            renderAll();
-            updateDashboard();
-            updateCloudModalUI();
-            syncInProgress = false;
+        try {
+            const baseUrl = getFirebaseUrl();
+            const response = await fetch(`${baseUrl}/restaurants/${cloudCode}.json`);
+            const cloudData = await response.json();
 
-            // Notification discrète
-            showSyncNotification('Données mises à jour');
+            if (cloudData && cloudData.version > localVersion) {
+                // Nouvelles données du cloud
+                syncInProgress = true;
+                state = JSON.parse(cloudData.data);
+                localVersion = cloudData.version;
+                lastSyncTime = Date.now();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                renderAll();
+                updateDashboard();
+                updateCloudModalUI();
+                syncInProgress = false;
+
+                // Notification discrète
+                showSyncNotification('Données mises à jour');
+            }
+        } catch (err) {
+            console.error('Polling error:', err);
         }
-    });
+    }, 10000); // Toutes les 10 secondes
 
     updateCloudModalUI();
 }
 
 function disconnectCloud() {
     if (confirm('Déconnecter du cloud? Les données locales seront conservées.')) {
-        if (cloudListener) {
-            cloudListener.off();
-            cloudListener = null;
+        if (cloudPollInterval) {
+            clearInterval(cloudPollInterval);
+            cloudPollInterval = null;
         }
         cloudCode = null;
         isCloudConnected = false;
@@ -1603,19 +1593,19 @@ async function forceSync() {
     updateCloudBadgeSyncing(true);
 
     try {
-        const snapshot = await firebaseDb.ref('restaurants/' + cloudCode).once('value');
-        if (snapshot.exists()) {
-            const cloudData = snapshot.val();
-            if (cloudData.data) {
-                state = JSON.parse(cloudData.data);
-                localVersion = cloudData.version || 0;
-                lastSyncTime = Date.now();
-                saveData();
-                renderAll();
-                updateDashboard();
-                updateCloudModalUI();
-                showSyncNotification('Synchronisation réussie');
-            }
+        const baseUrl = getFirebaseUrl();
+        const response = await fetch(`${baseUrl}/restaurants/${cloudCode}.json`);
+        const cloudData = await response.json();
+
+        if (cloudData && cloudData.data) {
+            state = JSON.parse(cloudData.data);
+            localVersion = cloudData.version || 0;
+            lastSyncTime = Date.now();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            renderAll();
+            updateDashboard();
+            updateCloudModalUI();
+            showSyncNotification('Synchronisation réussie');
         }
     } catch (err) {
         console.error('Force sync error:', err);
@@ -1632,11 +1622,17 @@ async function saveToCloud() {
     updateCloudBadgeSyncing(true);
 
     try {
+        const baseUrl = getFirebaseUrl();
         localVersion = Date.now();
-        await firebaseDb.ref('restaurants/' + cloudCode).update({
-            data: JSON.stringify(state),
-            version: localVersion,
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
+
+        await fetch(`${baseUrl}/restaurants/${cloudCode}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: JSON.stringify(state),
+                version: localVersion,
+                updatedAt: Date.now()
+            })
         });
         lastSyncTime = Date.now();
     } catch (err) {
@@ -1675,28 +1671,28 @@ function showSyncNotification(message) {
 }
 
 /* --- AUTO-RECONNECT ON LOAD --- */
-function tryAutoReconnect() {
+async function tryAutoReconnect() {
     const savedCode = localStorage.getItem(CLOUD_CODE_KEY);
-    if (savedCode && initFirebase()) {
-        // Tenter de se reconnecter automatiquement
-        firebaseDb.ref('restaurants/' + savedCode).once('value')
-            .then(snapshot => {
-                if (snapshot.exists()) {
-                    const cloudData = snapshot.val();
-                    if (cloudData.data) {
-                        state = JSON.parse(cloudData.data);
-                        localVersion = cloudData.version || 0;
-                        saveData();
-                        renderAll();
-                        updateDashboard();
-                    }
-                    setupCloudConnection(savedCode);
+    if (savedCode) {
+        try {
+            const baseUrl = getFirebaseUrl();
+            const response = await fetch(`${baseUrl}/restaurants/${savedCode}.json`);
+            const cloudData = await response.json();
+
+            if (cloudData) {
+                if (cloudData.data) {
+                    state = JSON.parse(cloudData.data);
+                    localVersion = cloudData.version || 0;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                    renderAll();
+                    updateDashboard();
                 }
-            })
-            .catch(err => {
-                console.error('Auto-reconnect failed:', err);
-                localStorage.removeItem(CLOUD_CODE_KEY);
-            });
+                setupCloudConnection(savedCode);
+            }
+        } catch (err) {
+            console.error('Auto-reconnect failed:', err);
+            localStorage.removeItem(CLOUD_CODE_KEY);
+        }
     }
 }
 
