@@ -3134,18 +3134,29 @@ function renderMenus() {
                     <div class="form-row" style="margin-bottom:15px;">
                         <div style="flex:1;">
                             <label style="font-size:0.7rem; font-weight:700; text-transform:uppercase; color:var(--text-light);">Prix TTC</label>
-                            <input type="number" step="0.1" value="${menu.sellingPrice}" onchange="updateMenuField(${index}, 'sellingPrice', this.value)" style="font-size:1.2rem; font-weight:800; padding:8px; width:100%;">
+                            <input type="number" step="0.1" value="${menu.sellingPrice}" onchange="updateMenuField(${index}, 'sellingPrice', this.value)" style="font-size:1.3rem; font-weight:800; color:var(--text); padding:8px; width:100%;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.7rem; font-weight:700; text-transform:uppercase; color:var(--text-light);">Cible FC %</label>
+                            <input type="number" style="font-size:1.3rem; font-weight:800; padding:8px; width:100%; border:2px solid var(--primary);" placeholder="%" onchange="updateMenuPriceFromFC(${index}, this.value, false)">
                         </div>
                         <div style="flex:1; text-align:center;">
                             <label style="font-size:0.7rem; font-weight:700; text-transform:uppercase; color:var(--text-light);">Food Cost</label>
-                            <div style="font-size:1.2rem; font-weight:800; padding:8px; color:${fcSP > 35 ? 'var(--danger)' : 'var(--success)'};">${fcSP.toFixed(0)}%</div>
+                            <div style="font-size:1.3rem; font-weight:800; padding:8px; color:${fcSP > 35 ? 'var(--danger)' : 'var(--success)'};">${fcSP.toFixed(0)}%</div>
                         </div>
                     </div>
+
+                    <div class="money-bar">
+                        <div class="bar-segment bg-tva" style="width:${priceTTC > 0 ? (tvaAmount/priceTTC*100).toFixed(1) : 0}%" title="TVA">TVA</div>
+                        <div class="bar-segment bg-cost" style="width:${priceTTC > 0 ? (totalCost/priceTTC*100).toFixed(1) : 0}%" title="Coût">Coût</div>
+                        <div class="bar-segment bg-margin" style="width:${priceTTC > 0 ? Math.max(0, marginSP/priceTTC*100).toFixed(1) : 0}%" title="Marge">Marge</div>
+                    </div>
+
                     <div class="legend-table">
-                        <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> TVA</div> <span>${tvaAmount.toFixed(2)} €</span></div>
+                        <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> Part État (TVA)</div> <span>${tvaAmount.toFixed(2)} €</span></div>
                         <div class="legend-row"><div class="legend-label"><span class="dot bg-cost"></span> Coût Total</div> <span>${totalCost.toFixed(2)} € <span style="font-size:0.75rem;opacity:0.7">(Mat: ${menuCost.toFixed(2)}€ + Emb: ${packagingCost.toFixed(2)}€)</span></span></div>
                         <div class="legend-row final-row" style="color:${marginSP < 0 ? 'var(--danger)' : 'var(--success)'};">
-                            <div class="legend-label"><span class="dot bg-margin"></span> Marge</div>
+                            <div class="legend-label"><span class="dot bg-margin"></span> Reste pour vous</div>
                             <span>${marginSP.toFixed(2)} €</span>
                         </div>
                     </div>
@@ -3159,23 +3170,35 @@ function renderMenus() {
                     <div class="form-row" style="margin-bottom:10px;">
                         <div style="flex:1;">
                             <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix TTC</label>
-                            <input type="number" step="0.1" value="${menu.deliveryPrice}" onchange="updateMenuField(${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1rem; font-weight:bold; width:100%; padding:6px;">
+                            <input type="number" step="0.1" value="${menu.deliveryPrice}" onchange="updateMenuField(${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold; width:100%; padding:6px;">
                         </div>
                         <div style="flex:1;">
                             <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Comm %</label>
-                            <input type="number" value="${menu.commission}" onchange="updateMenuField(${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1rem; font-weight:bold; width:100%; padding:6px;">
+                            <input type="number" value="${menu.commission}" onchange="updateMenuField(${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold; width:100%; padding:6px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Cible FC</label>
+                            <input type="number" style="background:rgba(255,255,255,0.9); color:#1e293b; border:none; font-size:1.1rem; font-weight:bold; width:100%; padding:6px;" placeholder="%" onchange="updateMenuPriceFromFC(${index}, this.value, true)">
                         </div>
                         <div style="flex:1; text-align:center;">
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">FC</label>
-                            <div style="font-size:1rem; font-weight:800; padding:6px; color:${fcDeliv > 35 ? '#f87171' : '#4ade80'};">${fcDeliv.toFixed(0)}%</div>
+                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">FC Actuel</label>
+                            <div style="font-size:1.1rem; font-weight:800; padding:6px; color:${fcDeliv > 35 ? '#f87171' : '#4ade80'};">${fcDeliv.toFixed(0)}%</div>
                         </div>
                     </div>
+
+                    <div class="money-bar" style="opacity:0.9;">
+                        <div class="bar-segment bg-tva" style="width:${delivPriceTTC > 0 ? (delivTva/delivPriceTTC*100).toFixed(1) : 0}%" title="TVA"></div>
+                        <div class="bar-segment bg-comm" style="width:${delivPriceTTC > 0 ? (commAmount/delivPriceTTC*100).toFixed(1) : 0}%" title="Commission">Comm.</div>
+                        <div class="bar-segment bg-cost" style="width:${delivPriceTTC > 0 ? (totalCost/delivPriceTTC*100).toFixed(1) : 0}%" title="Coût">Coût</div>
+                        <div class="bar-segment bg-margin" style="width:${delivPriceTTC > 0 ? Math.max(0, marginDeliv/delivPriceTTC*100).toFixed(1) : 0}%" title="Marge"></div>
+                    </div>
+
                     <div class="legend-table">
-                        <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> TVA</div> <span style="color:#94a3b8;">${delivTva.toFixed(2)} €</span></div>
-                        <div class="legend-row"><div class="legend-label"><span class="dot bg-comm"></span> Plateforme</div> <span style="color:#94a3b8;">${commAmount.toFixed(2)} €</span></div>
+                        <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> Part État (TVA)</div> <span style="color:#94a3b8;">${delivTva.toFixed(2)} €</span></div>
+                        <div class="legend-row"><div class="legend-label"><span class="dot bg-comm"></span> Part Plateforme</div> <span style="color:#94a3b8;">${commAmount.toFixed(2)} €</span></div>
                         <div class="legend-row"><div class="legend-label"><span class="dot bg-cost"></span> Coût Total</div> <span style="color:#94a3b8;">${totalCost.toFixed(2)} €</span></div>
                         <div class="legend-row final-row" style="color:${marginDeliv < 0 ? '#f87171' : '#4ade80'};">
-                            <div class="legend-label"><span class="dot bg-margin"></span> Marge</div>
+                            <div class="legend-label"><span class="dot bg-margin"></span> Reste pour vous</div>
                             <span>${marginDeliv.toFixed(2)} €</span>
                         </div>
                     </div>
@@ -3204,6 +3227,31 @@ function updateMenuField(index, field, value) {
     state.menus[index][field] = field === 'name' ? value : (parseFloat(value) || 0);
     saveData();
     renderMenus();
+}
+
+function updateMenuPriceFromFC(index, targetFC, isDelivery) {
+    const menu = state.menus[index];
+    const menuCost = calculateMenuCost(menu);
+    const vatRate = parseFloat(menu.vat) || 10;
+    const target = parseFloat(targetFC);
+    const packagingCost = parseFloat(menu.packagingCost) || 0;
+    const totalCost = menuCost + packagingCost;
+
+    if (target > 0 && totalCost > 0) {
+        if (isDelivery) {
+            const commPercent = parseFloat(menu.commission) || 30;
+            const priceHTNet = totalCost / (target / 100);
+            const priceHT = priceHTNet / (1 - commPercent / 100);
+            const priceTTC = priceHT * (1 + (vatRate / 100));
+            menu.deliveryPrice = priceTTC.toFixed(2);
+        } else {
+            const priceHT = totalCost / (target / 100);
+            const priceTTC = priceHT * (1 + (vatRate / 100));
+            menu.sellingPrice = priceTTC.toFixed(2);
+        }
+        saveData();
+        renderMenus();
+    }
 }
 
 function addDishToMenu(menuIndex, dishId) {
