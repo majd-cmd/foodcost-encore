@@ -2594,31 +2594,33 @@ function updateRecipeCalculations(type, index) {
             if(cell) cell.innerText = calculateCost([item]).toFixed(2) + ' €';
         });
 
-        // 2. Update Calculations (Sur Place)
+        // Emballage (commun aux deux)
+        const packagingCost = parseFloat(recipe.packagingCost) || 0;
+        const totalCost = cost + packagingCost;
+
+        // 2. Update Calculations (Emporter / Sur Place) - avec emballage
         const priceTTC = parseFloat(recipe.sellingPrice) || 0;
         const priceHT = priceTTC / (1 + (vatRate/100));
         const tvaAmount = priceTTC - priceHT;
-        const marginVal = priceHT - cost;
-        const marginPercent = priceHT > 0 ? (marginVal / priceHT) * 100 : 0;
-        
+        const marginVal = priceHT - totalCost;
+        const foodCostPercent = priceHT > 0 ? (totalCost / priceHT) * 100 : 0;
+
         const wTva = priceTTC > 0 ? (tvaAmount / priceTTC) * 100 : 0;
-        const wCost = priceTTC > 0 ? (cost / priceTTC) * 100 : 0;
+        const wCost = priceTTC > 0 ? (totalCost / priceTTC) * 100 : 0;
         const wMargin = priceTTC > 0 ? (marginVal / priceTTC) * 100 : 0;
 
-        // 3. Update Calculations (Livraison) - avec emballage
+        // 3. Update Calculations (Livraison) - avec emballage + commission
         const delivPriceTTC = parseFloat(recipe.deliveryPrice) || priceTTC;
         const delivPriceHT = delivPriceTTC / (1 + (vatRate/100));
         const delivTva = delivPriceTTC - delivPriceHT;
         const commPercent = parseFloat(recipe.commission) || 30;
         const commAmount = delivPriceHT * (commPercent / 100); // Commission sur HT
-        const packagingCost = parseFloat(recipe.packagingCost) || 0;
-        const totalDeliveryCost = cost + packagingCost;
-        const delivMarginVal = delivPriceHT - totalDeliveryCost - commAmount;
-        const delivFoodCostPercent = delivPriceHT > 0 ? (totalDeliveryCost / (delivPriceHT - commAmount)) * 100 : 0;
+        const delivMarginVal = delivPriceHT - totalCost - commAmount;
+        const delivFoodCostPercent = (delivPriceHT - commAmount) > 0 ? (totalCost / (delivPriceHT - commAmount)) * 100 : 0;
 
         const dwTva = delivPriceTTC > 0 ? (delivTva / delivPriceTTC) * 100 : 0;
         const dwComm = delivPriceTTC > 0 ? (commAmount / delivPriceTTC) * 100 : 0;
-        const dwCost = delivPriceTTC > 0 ? (totalDeliveryCost / delivPriceTTC) * 100 : 0;
+        const dwCost = delivPriceTTC > 0 ? (totalCost / delivPriceTTC) * 100 : 0;
         const dwMargin = delivPriceTTC > 0 ? (delivMarginVal / delivPriceTTC) * 100 : 0;
 
         // 4. Update DOM Elements (Sur Place)
@@ -2629,13 +2631,13 @@ function updateRecipeCalculations(type, index) {
         setStyle('bar-sp-tva', wTva);
         setStyle('bar-sp-cost', wCost);
         setStyle('bar-sp-margin', wMargin);
-        
+
         setTxt('val-sp-tva', tvaAmount.toFixed(2) + ' €');
-        setTxt('val-sp-cost', cost.toFixed(2) + ' €');
-        setHtml('val-sp-margin', `${marginVal.toFixed(2)} € (${marginPercent.toFixed(0)}%)`);
-        
+        setHtml('val-sp-cost', `${totalCost.toFixed(2)} € <span style="font-size:0.75rem;opacity:0.7">(Mat: ${cost.toFixed(2)}€ + Emb: ${packagingCost.toFixed(2)}€)</span>`);
+        setHtml('val-sp-margin', `${marginVal.toFixed(2)} € <span style="font-size:0.85rem">(FC: ${foodCostPercent.toFixed(0)}%)</span>`);
+
         const rowSp = document.getElementById('row-sp-margin');
-        if(rowSp) rowSp.style.color = marginPercent < 70 ? 'var(--danger)' : 'var(--success)';
+        if(rowSp) rowSp.style.color = foodCostPercent > 35 ? 'var(--danger)' : 'var(--success)';
 
         // 5. Update DOM Elements (Livraison)
         setStyle('bar-liv-tva', dwTva);
@@ -2787,36 +2789,42 @@ function renderFinalRecipes() {
                 <button class="btn btn-sm btn-primary" onclick="addRecItem('final', ${index})">+ Composant</button>
             </div>
 
-            <div class="form-row" style="justify-content: flex-end; align-items: center; margin-bottom: 20px;">
-                <span style="font-weight: 600; margin-right: 10px;">TVA Applicable :</span>
-                <input type="number" value="${recipe.vat}" oninput="updateRecField('final', ${index}, 'vat', this.value)" style="width: 60px; font-weight: bold;"> %
+            <div class="form-row" style="justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 600;"><i class="fas fa-box"></i> Emballage :</span>
+                    <input type="number" step="0.01" value="${recipe.packagingCost || 0}" oninput="updateRecField('final', ${index}, 'packagingCost', this.value)" style="width: 70px; font-weight: bold;"> €
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 600;">TVA :</span>
+                    <input type="number" value="${recipe.vat}" oninput="updateRecField('final', ${index}, 'vat', this.value)" style="width: 60px; font-weight: bold;"> %
+                </div>
             </div>
 
             <div class="profit-grid">
-                <!-- CARD SUR PLACE -->
+                <!-- CARD EMPORTER -->
                 <div class="profit-card">
                     <div class="profit-header">
-                        <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-store" style="color:var(--primary);"></i> Vente Sur Place</div>
+                        <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-shopping-bag" style="color:var(--primary);"></i> Emporter</div>
                         <div class="flex-between" style="font-size:0.8rem; font-weight:400; gap:10px;">
                             Cible FC: <input type="number" style="width:65px; text-align:center; border:1px solid var(--border); border-radius:4px; padding:4px 6px; font-size:0.85rem;" placeholder="%" onchange="updatePriceFromFC('final', ${index}, this.value, false)">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-light);">Prix de Vente TTC Client</label>
+                        <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-light);">Prix de Vente TTC</label>
                         <input type="number" step="0.1" value="${recipe.sellingPrice}" oninput="updateRecField('final', ${index}, 'sellingPrice', this.value)" style="font-size:1.5rem; font-weight:800; color:var(--text); padding:10px;">
                     </div>
 
                     <div class="money-bar">
                         <div id="bar-sp-tva" class="bar-segment bg-tva" style="width:0%" title="TVA">TVA</div>
-                        <div id="bar-sp-cost" class="bar-segment bg-cost" style="width:0%" title="Matière">Mat.</div>
+                        <div id="bar-sp-cost" class="bar-segment bg-cost" style="width:0%" title="Coût">Coût</div>
                         <div id="bar-sp-margin" class="bar-segment bg-margin" style="width:0%" title="Marge">Marge</div>
                     </div>
 
                     <div class="legend-table">
                         <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> Part État (TVA)</div> <span id="val-sp-tva">-- €</span></div>
-                        <div class="legend-row"><div class="legend-label"><span class="dot bg-cost"></span> Coût Matière</div> <span id="val-sp-cost">-- €</span></div>
+                        <div class="legend-row"><div class="legend-label"><span class="dot bg-cost"></span> Coût Total</div> <span id="val-sp-cost">-- €</span></div>
                         <div class="legend-row final-row" id="row-sp-margin">
-                            <div class="legend-label"><span class="dot bg-margin"></span> Reste pour vous</div> 
+                            <div class="legend-label"><span class="dot bg-margin"></span> Reste pour vous</div>
                             <span id="val-sp-margin">-- €</span>
                         </div>
                     </div>
@@ -2825,7 +2833,7 @@ function renderFinalRecipes() {
                 <!-- CARD LIVRAISON -->
                 <div class="profit-card dark-mode">
                     <div class="profit-header">
-                        <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-motorcycle" style="color:#38bdf8;"></i> Vente Livraison</div>
+                        <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-motorcycle" style="color:#38bdf8;"></i> Livraison (Plateforme)</div>
                         <div class="flex-between" style="font-size:0.8rem; font-weight:400; gap:10px;">
                             Cible FC: <input type="number" style="width:65px; text-align:center; border:none; border-radius:4px; padding:4px 6px; font-size:0.85rem; background:rgba(255,255,255,0.9);" placeholder="%" onchange="updatePriceFromFC('final', ${index}, this.value, true)">
                         </div>
@@ -2836,12 +2844,8 @@ function renderFinalRecipes() {
                             <input type="number" step="0.1" value="${recipe.deliveryPrice || recipe.sellingPrice}" oninput="updateRecField('final', ${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold;">
                         </div>
                         <div style="flex:1;">
-                            <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Comm %</label>
+                            <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Commission %</label>
                             <input type="number" value="${recipe.commission || 30}" oninput="updateRecField('final', ${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold;">
-                        </div>
-                        <div style="flex:1;">
-                            <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Emball. €</label>
-                            <input type="number" step="0.01" value="${recipe.packagingCost || 0}" oninput="updateRecField('final', ${index}, 'packagingCost', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold;">
                         </div>
                     </div>
 
@@ -2951,8 +2955,9 @@ function updatePriceFromFC(type, index, targetFC, isDelivery) {
             const priceTTC = priceHT * (1 + (vatRate / 100));
             recipe.deliveryPrice = priceTTC.toFixed(2);
         } else {
-            // Pour sur place: calcul simple
-            const priceHT = cost / (target / 100);
+            // Pour emporter: avec emballage
+            const totalCost = cost + packagingCost;
+            const priceHT = totalCost / (target / 100);
             const priceTTC = priceHT * (1 + (vatRate / 100));
             recipe.sellingPrice = priceTTC.toFixed(2);
         }
