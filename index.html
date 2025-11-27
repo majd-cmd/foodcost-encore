@@ -1003,6 +1003,7 @@
         <div class="tabs">
             <button class="tab-btn active" onclick="switchView('intermediate')" id="btn-view-int"><i class="fas fa-blender"></i> Préparations</button>
             <button class="tab-btn" onclick="switchView('final')" id="btn-view-final"><i class="fas fa-utensils"></i> Plats</button>
+            <button class="tab-btn" onclick="switchView('menus')" id="btn-view-menus"><i class="fas fa-book-open"></i> Menus</button>
         </div>
 
         <div id="view-intermediate">
@@ -1069,6 +1070,21 @@
                 <div class="sub-tabs-container" id="fin-sub-tabs"></div>
                <div id="finalRecipeContent"></div>
            </div>
+        </div>
+
+        <div id="view-menus" class="hidden">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">
+                    <i class="fas fa-book-open" style="color: var(--primary); margin-right: 10px;"></i>
+                    Menus
+                    <button class="btn btn-primary btn-sm" style="margin-left: auto;" onclick="createMenu()">
+                        <i class="fas fa-plus"></i> Nouveau Menu
+                    </button>
+                </h2>
+                <div id="menusContent">
+                    <div class="empty-state">Aucun menu créé. Créez un menu pour combiner plusieurs plats.</div>
+                </div>
+            </div>
         </div>
     </main>
 </div>
@@ -1698,7 +1714,7 @@ async function tryAutoReconnect() {
 let isSharedMode = false;
 
 /* --- DONNEES INITIALES (COPIE DE TA LISTE) --- */
-let state = { ingredients: [], intermediate: [], final: [], priceHistory: {}, settings: { marginThreshold: 70 } };
+let state = { ingredients: [], intermediate: [], final: [], menus: [], priceHistory: {}, settings: { marginThreshold: 70 } };
 let activeIntIndex = 0; let activeFinIndex = 0;
 
 const initialData = {
@@ -2021,16 +2037,22 @@ function renderAll() {
     renderIngredients();
     renderIntermediateRecipes();
     renderFinalRecipes();
+    renderMenus();
 }
 
 function switchView(view) {
     document.getElementById('view-intermediate').classList.add('hidden');
     document.getElementById('view-final').classList.add('hidden');
+    document.getElementById('view-menus').classList.add('hidden');
     document.getElementById('btn-view-int').classList.remove('active');
     document.getElementById('btn-view-final').classList.remove('active');
+    document.getElementById('btn-view-menus').classList.remove('active');
     document.getElementById('view-' + view).classList.remove('hidden');
-    document.getElementById('btn-view-' + (view === 'intermediate' ? 'int' : 'final')).classList.add('active');
+    if (view === 'intermediate') document.getElementById('btn-view-int').classList.add('active');
+    else if (view === 'final') document.getElementById('btn-view-final').classList.add('active');
+    else if (view === 'menus') document.getElementById('btn-view-menus').classList.add('active');
     if(view === 'final') updateDashboard();
+    if(view === 'menus') renderMenus();
 }
 
 function switchSubTab(type, index) {
@@ -2583,18 +2605,20 @@ function updateRecipeCalculations(type, index) {
         const wCost = priceTTC > 0 ? (cost / priceTTC) * 100 : 0;
         const wMargin = priceTTC > 0 ? (marginVal / priceTTC) * 100 : 0;
 
-        // 3. Update Calculations (Livraison)
+        // 3. Update Calculations (Livraison) - avec emballage
         const delivPriceTTC = parseFloat(recipe.deliveryPrice) || priceTTC;
         const delivPriceHT = delivPriceTTC / (1 + (vatRate/100));
         const delivTva = delivPriceTTC - delivPriceHT;
         const commPercent = parseFloat(recipe.commission) || 30;
-        const commAmount = delivPriceTTC * (commPercent / 100);
-        const delivMarginVal = delivPriceHT - cost - commAmount;
-        const delivMarginPercent = delivPriceHT > 0 ? (delivMarginVal / delivPriceHT) * 100 : 0;
+        const commAmount = delivPriceHT * (commPercent / 100); // Commission sur HT
+        const packagingCost = parseFloat(recipe.packagingCost) || 0;
+        const totalDeliveryCost = cost + packagingCost;
+        const delivMarginVal = delivPriceHT - totalDeliveryCost - commAmount;
+        const delivFoodCostPercent = delivPriceHT > 0 ? (totalDeliveryCost / (delivPriceHT - commAmount)) * 100 : 0;
 
         const dwTva = delivPriceTTC > 0 ? (delivTva / delivPriceTTC) * 100 : 0;
         const dwComm = delivPriceTTC > 0 ? (commAmount / delivPriceTTC) * 100 : 0;
-        const dwCost = delivPriceTTC > 0 ? (cost / delivPriceTTC) * 100 : 0;
+        const dwCost = delivPriceTTC > 0 ? (totalDeliveryCost / delivPriceTTC) * 100 : 0;
         const dwMargin = delivPriceTTC > 0 ? (delivMarginVal / delivPriceTTC) * 100 : 0;
 
         // 4. Update DOM Elements (Sur Place)
@@ -2621,11 +2645,11 @@ function updateRecipeCalculations(type, index) {
 
         setTxt('val-liv-tva', delivTva.toFixed(2) + ' €');
         setTxt('val-liv-comm', commAmount.toFixed(2) + ' €');
-        setTxt('val-liv-cost', cost.toFixed(2) + ' €');
-        setHtml('val-liv-margin', `${delivMarginVal.toFixed(2)} € (${delivMarginPercent.toFixed(0)}%)`);
+        setHtml('val-liv-cost', `${totalDeliveryCost.toFixed(2)} € <span style="font-size:0.75rem;opacity:0.7">(Mat: ${cost.toFixed(2)}€ + Emb: ${packagingCost.toFixed(2)}€)</span>`);
+        setHtml('val-liv-margin', `${delivMarginVal.toFixed(2)} € <span style="font-size:0.85rem">(FC: ${delivFoodCostPercent.toFixed(0)}%)</span>`);
 
         const rowLiv = document.getElementById('row-liv-margin');
-        if(rowLiv) rowLiv.style.color = delivMarginPercent < 30 ? '#f87171' : '#4ade80';
+        if(rowLiv) rowLiv.style.color = delivFoodCostPercent > 35 ? '#f87171' : '#4ade80';
     }
 }
 
@@ -2807,13 +2831,17 @@ function renderFinalRecipes() {
                         </div>
                     </div>
                     <div class="form-row">
-                        <div style="flex:2;">
-                            <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix Vente TTC</label>
-                            <input type="number" step="0.1" value="${recipe.deliveryPrice || recipe.sellingPrice}" oninput="updateRecField('final', ${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.2rem; font-weight:bold;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix TTC</label>
+                            <input type="number" step="0.1" value="${recipe.deliveryPrice || recipe.sellingPrice}" oninput="updateRecField('final', ${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold;">
                         </div>
                         <div style="flex:1;">
                             <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Comm %</label>
-                            <input type="number" value="${recipe.commission || 30}" oninput="updateRecField('final', ${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.2rem; font-weight:bold;">
+                            <input type="number" value="${recipe.commission || 30}" oninput="updateRecField('final', ${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Emball. €</label>
+                            <input type="number" step="0.01" value="${recipe.packagingCost || 0}" oninput="updateRecField('final', ${index}, 'packagingCost', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold;">
                         </div>
                     </div>
 
@@ -2825,11 +2853,11 @@ function renderFinalRecipes() {
                     </div>
 
                     <div class="legend-table">
-                        <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> Part État</div> <span id="val-liv-tva">-- €</span></div>
+                        <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> Part État (TVA)</div> <span id="val-liv-tva">-- €</span></div>
                         <div class="legend-row"><div class="legend-label"><span class="dot bg-comm"></span> Part Plateforme</div> <span id="val-liv-comm">-- €</span></div>
-                        <div class="legend-row"><div class="legend-label"><span class="dot bg-cost"></span> Coût Matière</div> <span id="val-liv-cost">-- €</span></div>
+                        <div class="legend-row"><div class="legend-label"><span class="dot bg-cost"></span> Coût Total</div> <span id="val-liv-cost">-- €</span></div>
                         <div class="legend-row final-row" id="row-liv-margin">
-                            <div class="legend-label"><span class="dot bg-margin"></span> Reste pour vous</div> 
+                            <div class="legend-label"><span class="dot bg-margin"></span> Reste pour vous</div>
                             <span id="val-liv-margin">-- €</span>
                         </div>
                     </div>
@@ -2848,7 +2876,16 @@ function createIntermediateRecipe() {
 }
 
 function createFinalRecipe() {
-    state.final.push({ id: 'FIN_' + Date.now(), name: "Nouveau Plat", sellingPrice: 15.00, deliveryPrice: 18.00, vat: 10, commission: 30, clientFee: 2.99, serviceFee: 1.99, items: [] });
+    state.final.push({
+        id: 'FIN_' + Date.now(),
+        name: "Nouveau Plat",
+        sellingPrice: 15.00,
+        deliveryPrice: 18.00,
+        vat: 10,
+        commission: 30,
+        packagingCost: 0.50,
+        items: []
+    });
     activeFinIndex = state.final.length - 1;
     saveData(); renderFinalRecipes();
 }
@@ -2895,18 +2932,28 @@ function updateRecItem(type, recIdx, itemIdx, field, val) {
 
 function updatePriceFromFC(type, index, targetFC, isDelivery) {
     const recipe = state[type][index];
-    const cost = calculateCost(recipe.items, new Set([recipe.id])); 
+    const cost = calculateCost(recipe.items, new Set([recipe.id]));
     const vatRate = parseFloat(recipe.vat) || 0;
     const target = parseFloat(targetFC);
+    const packagingCost = parseFloat(recipe.packagingCost) || 0;
 
     if (target > 0 && cost > 0) {
-        // Price HT = Cost / (Target% / 100)
-        const priceHT = cost / (target / 100);
-        const priceTTC = priceHT * (1 + (vatRate / 100));
-        
         if (isDelivery) {
+            // Pour livraison: on doit tenir compte de la commission plateforme
+            // Food Cost % = (Coût matière + Emballage) / Prix HT net (après commission)
+            // Prix HT net = Prix HT - Commission
+            // Donc: Prix HT net = (Coût + Emballage) / (Target% / 100)
+            // Et: Prix HT = Prix HT net / (1 - Commission% / 100)
+            const commPercent = parseFloat(recipe.commission) || 30;
+            const totalCost = cost + packagingCost;
+            const priceHTNet = totalCost / (target / 100);
+            const priceHT = priceHTNet / (1 - commPercent / 100);
+            const priceTTC = priceHT * (1 + (vatRate / 100));
             recipe.deliveryPrice = priceTTC.toFixed(2);
         } else {
+            // Pour sur place: calcul simple
+            const priceHT = cost / (target / 100);
+            const priceTTC = priceHT * (1 + (vatRate / 100));
             recipe.sellingPrice = priceTTC.toFixed(2);
         }
         saveData();
@@ -2949,6 +2996,172 @@ function duplicateRecipe(type, index) {
         saveData();
         renderFinalRecipes();
         updateDashboard();
+    }
+}
+
+/* --- GESTION DES MENUS --- */
+let activeMenuIndex = 0;
+
+function createMenu() {
+    if (!state.menus) state.menus = [];
+    state.menus.push({
+        id: 'MENU_' + Date.now(),
+        name: 'Nouveau Menu',
+        sellingPrice: 25.00,
+        deliveryPrice: 30.00,
+        vat: 10,
+        commission: 30,
+        packagingCost: 1.00,
+        dishes: []
+    });
+    activeMenuIndex = state.menus.length - 1;
+    saveData();
+    renderMenus();
+}
+
+function renderMenus() {
+    const container = document.getElementById('menusContent');
+    if (!container) return;
+    if (!state.menus) state.menus = [];
+
+    if (state.menus.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucun menu créé. Créez un menu pour combiner plusieurs plats.</div>';
+        return;
+    }
+
+    let html = '';
+    state.menus.forEach((menu, index) => {
+        const menuCost = calculateMenuCost(menu);
+        const vatRate = parseFloat(menu.vat) || 10;
+        const packagingCost = parseFloat(menu.packagingCost) || 0;
+        const totalCost = menuCost + packagingCost;
+
+        const priceTTC = parseFloat(menu.sellingPrice) || 0;
+        const priceHT = priceTTC / (1 + (vatRate / 100));
+        const marginSP = priceHT - menuCost;
+        const fcSP = priceHT > 0 ? (menuCost / priceHT) * 100 : 0;
+
+        const delivPriceTTC = parseFloat(menu.deliveryPrice) || 0;
+        const delivPriceHT = delivPriceTTC / (1 + (vatRate / 100));
+        const commPercent = parseFloat(menu.commission) || 30;
+        const commAmount = delivPriceHT * (commPercent / 100);
+        const marginDeliv = delivPriceHT - totalCost - commAmount;
+        const fcDeliv = (delivPriceHT - commAmount) > 0 ? (totalCost / (delivPriceHT - commAmount)) * 100 : 0;
+
+        html += `
+        <div style="background: var(--surface); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <input type="text" value="${menu.name}" onchange="updateMenuField(${index}, 'name', this.value)"
+                    style="font-size: 1.3rem; font-weight: 700; border: none; background: transparent; flex: 1; color: var(--text);">
+                <button class="btn btn-outline btn-sm" style="color: var(--danger);" onclick="deleteMenu(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 8px;">
+                    <i class="fas fa-utensils"></i> Plats inclus dans ce menu
+                </label>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                    ${menu.dishes.map((dishId, dishIdx) => {
+                        const dish = state.final.find(f => f.id === dishId);
+                        return dish ? '<span style="background: var(--primary); color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem;">' + dish.name + ' <button onclick="removeDishFromMenu(' + index + ', ' + dishIdx + ')" style="background: none; border: none; color: white; cursor: pointer;">×</button></span>' : '';
+                    }).join('')}
+                </div>
+                <select onchange="addDishToMenu(${index}, this.value); this.value='';" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); width: 100%;">
+                    <option value="">+ Ajouter un plat...</option>
+                    ${state.final.filter(f => !menu.dishes.includes(f.id)).map(f => '<option value="' + f.id + '">' + f.name + '</option>').join('')}
+                </select>
+            </div>
+
+            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <div style="font-weight: 600;"><i class="fas fa-calculator"></i> Coût Matière Total: <span style="color: var(--primary);">${menuCost.toFixed(2)} €</span></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid var(--primary);">
+                    <div style="font-weight: 700; color: var(--primary); margin-bottom: 10px;"><i class="fas fa-store"></i> Sur Place</div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 0.75rem;">Prix TTC</label>
+                        <input type="number" step="0.1" value="${menu.sellingPrice}" onchange="updateMenuField(${index}, 'sellingPrice', this.value)" style="width: 100%; padding: 8px;">
+                    </div>
+                    <div style="font-size: 0.9rem; color: var(--text-light);">
+                        Food Cost: <strong style="color: ${fcSP > 35 ? 'var(--danger)' : 'var(--success)'};">${fcSP.toFixed(0)}%</strong><br>
+                        Marge: <strong style="color: ${marginSP < 0 ? 'var(--danger)' : 'var(--success)'};">${marginSP.toFixed(2)} €</strong>
+                    </div>
+                </div>
+
+                <div style="background: #1e293b; color: white; padding: 15px; border-radius: 8px;">
+                    <div style="font-weight: 700; color: #38bdf8; margin-bottom: 10px;"><i class="fas fa-motorcycle"></i> Livraison</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 0.65rem; color: #94a3b8;">Prix TTC</label>
+                            <input type="number" step="0.1" value="${menu.deliveryPrice}" onchange="updateMenuField(${index}, 'deliveryPrice', this.value)" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.65rem; color: #94a3b8;">Comm %</label>
+                            <input type="number" value="${menu.commission}" onchange="updateMenuField(${index}, 'commission', this.value)" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.65rem; color: #94a3b8;">Emball.</label>
+                            <input type="number" step="0.1" value="${menu.packagingCost}" onchange="updateMenuField(${index}, 'packagingCost', this.value)" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px;">
+                        </div>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #94a3b8;">
+                        Food Cost: <strong style="color: ${fcDeliv > 35 ? '#f87171' : '#4ade80'};">${fcDeliv.toFixed(0)}%</strong><br>
+                        Marge: <strong style="color: ${marginDeliv < 0 ? '#f87171' : '#4ade80'};">${marginDeliv.toFixed(2)} €</strong>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 10px; text-align: right;">
+                <label style="font-size: 0.8rem; color: var(--text-light);">TVA: </label>
+                <input type="number" value="${menu.vat}" onchange="updateMenuField(${index}, 'vat', this.value)" style="width: 50px; padding: 4px;">%
+            </div>
+        </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function calculateMenuCost(menu) {
+    let total = 0;
+    if (menu.dishes && menu.dishes.length > 0) {
+        menu.dishes.forEach(dishId => {
+            const dish = state.final.find(f => f.id === dishId);
+            if (dish) {
+                total += calculateCost(dish.items, new Set([dish.id]));
+            }
+        });
+    }
+    return total;
+}
+
+function updateMenuField(index, field, value) {
+    state.menus[index][field] = field === 'name' ? value : (parseFloat(value) || 0);
+    saveData();
+    renderMenus();
+}
+
+function addDishToMenu(menuIndex, dishId) {
+    if (!dishId) return;
+    if (!state.menus[menuIndex].dishes.includes(dishId)) {
+        state.menus[menuIndex].dishes.push(dishId);
+        saveData();
+        renderMenus();
+    }
+}
+
+function removeDishFromMenu(menuIndex, dishIdx) {
+    state.menus[menuIndex].dishes.splice(dishIdx, 1);
+    saveData();
+    renderMenus();
+}
+
+function deleteMenu(index) {
+    if (confirm('Supprimer ce menu?')) {
+        state.menus.splice(index, 1);
+        saveData();
+        renderMenus();
     }
 }
 
