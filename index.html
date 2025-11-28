@@ -2609,17 +2609,20 @@ function updateRecipeCalculations(type, index) {
         const wCost = priceTTC > 0 ? (totalCost / priceTTC) * 100 : 0;
         const wMargin = priceTTC > 0 ? (marginVal / priceTTC) * 100 : 0;
 
-        // 3. Update Calculations (Livraison) - avec emballage + commission
+        // 3. Update Calculations (Livraison) - avec emballage + commission + frais
         const delivPriceTTC = parseFloat(recipe.deliveryPrice) || priceTTC;
         const delivPriceHT = delivPriceTTC / (1 + (vatRate/100));
         const delivTva = delivPriceTTC - delivPriceHT;
         const commPercent = parseFloat(recipe.commission) || 30;
+        const deliveryFee = parseFloat(recipe.deliveryFee) || 0;
+        const serviceFee = parseFloat(recipe.serviceFee) || 0;
         const commAmount = delivPriceHT * (commPercent / 100); // Commission sur HT
-        const delivMarginVal = delivPriceHT - totalCost - commAmount;
-        const delivFoodCostPercent = (delivPriceHT - commAmount) > 0 ? (totalCost / (delivPriceHT - commAmount)) * 100 : 0;
+        const totalPlatformFees = commAmount + deliveryFee + serviceFee;
+        const delivMarginVal = delivPriceHT - totalCost - totalPlatformFees;
+        const delivFoodCostPercent = (delivPriceHT - totalPlatformFees) > 0 ? (totalCost / (delivPriceHT - totalPlatformFees)) * 100 : 0;
 
         const dwTva = delivPriceTTC > 0 ? (delivTva / delivPriceTTC) * 100 : 0;
-        const dwComm = delivPriceTTC > 0 ? (commAmount / delivPriceTTC) * 100 : 0;
+        const dwComm = delivPriceTTC > 0 ? (totalPlatformFees / delivPriceTTC) * 100 : 0;
         const dwCost = delivPriceTTC > 0 ? (totalCost / delivPriceTTC) * 100 : 0;
         const dwMargin = delivPriceTTC > 0 ? (delivMarginVal / delivPriceTTC) * 100 : 0;
 
@@ -2653,7 +2656,7 @@ function updateRecipeCalculations(type, index) {
         setStyle('bar-liv-margin', dwMargin);
 
         setTxt('val-liv-tva', delivTva.toFixed(2) + ' €');
-        setTxt('val-liv-comm', commAmount.toFixed(2) + ' €');
+        setHtml('val-liv-comm', `${totalPlatformFees.toFixed(2)} € <span style="font-size:0.7rem;opacity:0.8">(${commPercent}%: ${commAmount.toFixed(2)}€${deliveryFee > 0 ? ' + Liv: ' + deliveryFee.toFixed(2) + '€' : ''}${serviceFee > 0 ? ' + Serv: ' + serviceFee.toFixed(2) + '€' : ''})</span>`);
         setHtml('val-liv-cost', `${totalCost.toFixed(2)} € <span style="font-size:0.75rem;opacity:0.7">(Mat: ${cost.toFixed(2)}€ + Emb: ${packagingCost.toFixed(2)}€)</span>`);
         setTxt('val-liv-margin', delivMarginVal.toFixed(2) + ' €');
 
@@ -2856,14 +2859,10 @@ function renderFinalRecipes() {
                     <div class="profit-header">
                         <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-motorcycle" style="color:#38bdf8;"></i> Livraison (Plateforme)</div>
                     </div>
-                    <div class="form-row" style="margin-bottom:10px;">
+                    <div class="form-row" style="margin-bottom:8px;">
                         <div style="flex:1;">
                             <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix TTC</label>
                             <input type="number" step="0.1" value="${recipe.deliveryPrice || recipe.sellingPrice}" oninput="updateRecField('final', ${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold; width:100%; padding:6px;">
-                        </div>
-                        <div style="flex:1;">
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Comm %</label>
-                            <input type="number" value="${recipe.commission || 30}" oninput="updateRecField('final', ${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold; width:100%; padding:6px;">
                         </div>
                         <div style="flex:1;">
                             <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Cible FC</label>
@@ -2872,6 +2871,20 @@ function renderFinalRecipes() {
                         <div style="flex:1; text-align:center;">
                             <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">FC Actuel</label>
                             <div id="val-liv-fc" style="font-size:1.1rem; font-weight:800; padding:6px; color:#38bdf8;">--%</div>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-bottom:10px;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:600; text-transform:uppercase; color:#64748b;">Comm %</label>
+                            <input type="number" value="${recipe.commission || 30}" oninput="updateRecField('final', ${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:0.9rem; font-weight:bold; width:100%; padding:5px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:600; text-transform:uppercase; color:#64748b;">Frais Liv €</label>
+                            <input type="number" step="0.1" value="${recipe.deliveryFee || 0}" oninput="updateRecField('final', ${index}, 'deliveryFee', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:0.9rem; font-weight:bold; width:100%; padding:5px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:600; text-transform:uppercase; color:#64748b;">Frais Serv €</label>
+                            <input type="number" step="0.1" value="${recipe.serviceFee || 0}" oninput="updateRecField('final', ${index}, 'serviceFee', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:0.9rem; font-weight:bold; width:100%; padding:5px;">
                         </div>
                     </div>
 
@@ -2913,6 +2926,8 @@ function createFinalRecipe() {
         deliveryPrice: 18.00,
         vat: 10,
         commission: 30,
+        deliveryFee: 0,
+        serviceFee: 0,
         packagingCost: 0.50,
         items: []
     });
@@ -2969,15 +2984,17 @@ function updatePriceFromFC(type, index, targetFC, isDelivery) {
 
     if (target > 0 && cost > 0) {
         if (isDelivery) {
-            // Pour livraison: on doit tenir compte de la commission plateforme
-            // Food Cost % = (Coût matière + Emballage) / Prix HT net (après commission)
-            // Prix HT net = Prix HT - Commission
-            // Donc: Prix HT net = (Coût + Emballage) / (Target% / 100)
-            // Et: Prix HT = Prix HT net / (1 - Commission% / 100)
+            // Pour livraison: commission% + frais fixes (livraison + service)
+            // Food Cost % = totalCost / (Prix HT - Commission - FraisLiv - FraisServ)
+            // priceHTNet = totalCost / (target% / 100)
+            // priceHT * (1 - comm%/100) - delivFee - servFee = priceHTNet
+            // priceHT = (priceHTNet + delivFee + servFee) / (1 - comm%/100)
             const commPercent = parseFloat(recipe.commission) || 30;
+            const deliveryFee = parseFloat(recipe.deliveryFee) || 0;
+            const serviceFee = parseFloat(recipe.serviceFee) || 0;
             const totalCost = cost + packagingCost;
             const priceHTNet = totalCost / (target / 100);
-            const priceHT = priceHTNet / (1 - commPercent / 100);
+            const priceHT = (priceHTNet + deliveryFee + serviceFee) / (1 - commPercent / 100);
             const priceTTC = priceHT * (1 + (vatRate / 100));
             recipe.deliveryPrice = priceTTC.toFixed(2);
         } else {
@@ -3042,6 +3059,8 @@ function createMenu() {
         deliveryPrice: 30.00,
         vat: 10,
         commission: 30,
+        deliveryFee: 0,
+        serviceFee: 0,
         packagingCost: 1.00,
         dishes: []
     });
@@ -3079,9 +3098,12 @@ function renderMenus() {
         const delivPriceHT = delivPriceTTC / (1 + (vatRate / 100));
         const delivTva = delivPriceTTC - delivPriceHT;
         const commPercent = parseFloat(menu.commission) || 30;
+        const deliveryFee = parseFloat(menu.deliveryFee) || 0;
+        const serviceFee = parseFloat(menu.serviceFee) || 0;
         const commAmount = delivPriceHT * (commPercent / 100);
-        const marginDeliv = delivPriceHT - totalCost - commAmount;
-        const fcDeliv = (delivPriceHT - commAmount) > 0 ? (totalCost / (delivPriceHT - commAmount)) * 100 : 0;
+        const totalPlatformFees = commAmount + deliveryFee + serviceFee;
+        const marginDeliv = delivPriceHT - totalCost - totalPlatformFees;
+        const fcDeliv = (delivPriceHT - totalPlatformFees) > 0 ? (totalCost / (delivPriceHT - totalPlatformFees)) * 100 : 0;
 
         html += `
         <div style="background: var(--surface); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
@@ -3167,14 +3189,10 @@ function renderMenus() {
                     <div class="profit-header">
                         <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-motorcycle" style="color:#38bdf8;"></i> Livraison (Plateforme)</div>
                     </div>
-                    <div class="form-row" style="margin-bottom:10px;">
+                    <div class="form-row" style="margin-bottom:8px;">
                         <div style="flex:1;">
                             <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix TTC</label>
                             <input type="number" step="0.1" value="${menu.deliveryPrice}" onchange="updateMenuField(${index}, 'deliveryPrice', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold; width:100%; padding:6px;">
-                        </div>
-                        <div style="flex:1;">
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Comm %</label>
-                            <input type="number" value="${menu.commission}" onchange="updateMenuField(${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:1.1rem; font-weight:bold; width:100%; padding:6px;">
                         </div>
                         <div style="flex:1;">
                             <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Cible FC</label>
@@ -3185,17 +3203,31 @@ function renderMenus() {
                             <div style="font-size:1.1rem; font-weight:800; padding:6px; color:${fcDeliv > 35 ? '#f87171' : '#4ade80'};">${fcDeliv.toFixed(0)}%</div>
                         </div>
                     </div>
+                    <div class="form-row" style="margin-bottom:10px;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:600; text-transform:uppercase; color:#64748b;">Comm %</label>
+                            <input type="number" value="${menu.commission}" onchange="updateMenuField(${index}, 'commission', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:0.9rem; font-weight:bold; width:100%; padding:5px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:600; text-transform:uppercase; color:#64748b;">Frais Liv €</label>
+                            <input type="number" step="0.1" value="${menu.deliveryFee || 0}" onchange="updateMenuField(${index}, 'deliveryFee', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:0.9rem; font-weight:bold; width:100%; padding:5px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:600; text-transform:uppercase; color:#64748b;">Frais Serv €</label>
+                            <input type="number" step="0.1" value="${menu.serviceFee || 0}" onchange="updateMenuField(${index}, 'serviceFee', this.value)" style="background:rgba(255,255,255,0.1); color:white; border:none; font-size:0.9rem; font-weight:bold; width:100%; padding:5px;">
+                        </div>
+                    </div>
 
                     <div class="money-bar" style="opacity:0.9;">
                         <div class="bar-segment bg-tva" style="width:${delivPriceTTC > 0 ? (delivTva/delivPriceTTC*100).toFixed(1) : 0}%" title="TVA"></div>
-                        <div class="bar-segment bg-comm" style="width:${delivPriceTTC > 0 ? (commAmount/delivPriceTTC*100).toFixed(1) : 0}%" title="Commission">Comm.</div>
+                        <div class="bar-segment bg-comm" style="width:${delivPriceTTC > 0 ? (totalPlatformFees/delivPriceTTC*100).toFixed(1) : 0}%" title="Plateforme">Plat.</div>
                         <div class="bar-segment bg-cost" style="width:${delivPriceTTC > 0 ? (totalCost/delivPriceTTC*100).toFixed(1) : 0}%" title="Coût">Coût</div>
                         <div class="bar-segment bg-margin" style="width:${delivPriceTTC > 0 ? Math.max(0, marginDeliv/delivPriceTTC*100).toFixed(1) : 0}%" title="Marge"></div>
                     </div>
 
                     <div class="legend-table">
                         <div class="legend-row"><div class="legend-label"><span class="dot bg-tva"></span> Part État (TVA)</div> <span style="color:#94a3b8;">${delivTva.toFixed(2)} €</span></div>
-                        <div class="legend-row"><div class="legend-label"><span class="dot bg-comm"></span> Part Plateforme</div> <span style="color:#94a3b8;">${commAmount.toFixed(2)} €</span></div>
+                        <div class="legend-row"><div class="legend-label"><span class="dot bg-comm"></span> Part Plateforme</div> <span style="color:#94a3b8;">${totalPlatformFees.toFixed(2)} € <span style="font-size:0.7rem;opacity:0.8">(${commPercent}%: ${commAmount.toFixed(2)}€${deliveryFee > 0 ? ' + Liv: ' + deliveryFee.toFixed(2) + '€' : ''}${serviceFee > 0 ? ' + Serv: ' + serviceFee.toFixed(2) + '€' : ''})</span></span></div>
                         <div class="legend-row"><div class="legend-label"><span class="dot bg-cost"></span> Coût Total</div> <span style="color:#94a3b8;">${totalCost.toFixed(2)} €</span></div>
                         <div class="legend-row final-row" style="color:${marginDeliv < 0 ? '#f87171' : '#4ade80'};">
                             <div class="legend-label"><span class="dot bg-margin"></span> Reste pour vous</div>
@@ -3239,9 +3271,12 @@ function updateMenuPriceFromFC(index, targetFC, isDelivery) {
 
     if (target > 0 && totalCost > 0) {
         if (isDelivery) {
+            // Avec commission% + frais fixes (livraison + service)
             const commPercent = parseFloat(menu.commission) || 30;
+            const deliveryFee = parseFloat(menu.deliveryFee) || 0;
+            const serviceFee = parseFloat(menu.serviceFee) || 0;
             const priceHTNet = totalCost / (target / 100);
-            const priceHT = priceHTNet / (1 - commPercent / 100);
+            const priceHT = (priceHTNet + deliveryFee + serviceFee) / (1 - commPercent / 100);
             const priceTTC = priceHT * (1 + (vatRate / 100));
             menu.deliveryPrice = priceTTC.toFixed(2);
         } else {
