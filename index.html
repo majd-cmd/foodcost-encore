@@ -3137,12 +3137,47 @@ function renderMenus() {
                 <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 8px;">
                     <i class="fas fa-utensils"></i> Plats inclus dans ce menu
                 </label>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
-                    ${menu.dishes.map((dishId, dishIdx) => {
-                        const dish = state.final.find(f => f.id === dishId);
-                        return dish ? '<span style="background: var(--primary); color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem;">' + dish.name + ' <button onclick="removeDishFromMenu(' + index + ', ' + dishIdx + ')" style="background: none; border: none; color: white; cursor: pointer;">×</button></span>' : '';
-                    }).join('')}
-                </div>
+
+                <!-- Tableau détaillé des plats -->
+                ${menu.dishes.length > 0 ? `
+                <table style="width:100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: #f1f5f9;">
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid var(--border);">Plat</th>
+                            <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--border);">Coût</th>
+                            <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--border);">Prix Seul</th>
+                            <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--border);">FC%</th>
+                            <th style="padding: 8px; text-align: center; border-bottom: 2px solid var(--border);"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${menu.dishes.map((dishId, dishIdx) => {
+                            const dish = state.final.find(f => f.id === dishId);
+                            if (!dish) return '';
+                            const dishCost = calculateCost(dish.items, new Set([dish.id]));
+                            const dishPriceTTC = parseFloat(dish.sellingPrice) || 0;
+                            const dishPriceHT = dishPriceTTC / (1 + (parseFloat(dish.vat) || 10) / 100);
+                            const dishFC = dishPriceHT > 0 ? (dishCost / dishPriceHT) * 100 : 0;
+                            const fcColor = dishFC > 35 ? 'var(--danger)' : 'var(--success)';
+                            return '<tr style="border-bottom: 1px solid var(--border);">' +
+                                '<td style="padding: 8px;"><strong>' + dish.name + '</strong></td>' +
+                                '<td style="padding: 8px; text-align: right;">' + dishCost.toFixed(2) + ' €</td>' +
+                                '<td style="padding: 8px; text-align: right;">' + dishPriceTTC.toFixed(2) + ' €</td>' +
+                                '<td style="padding: 8px; text-align: right; font-weight: 700; color: ' + fcColor + ';">' + dishFC.toFixed(0) + '%</td>' +
+                                '<td style="padding: 8px; text-align: center;"><button onclick="removeDishFromMenu(' + index + ', ' + dishIdx + ')" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem;">×</button></td>' +
+                            '</tr>';
+                        }).join('')}
+                        <tr style="background: #e2e8f0; font-weight: 700;">
+                            <td style="padding: 8px;">TOTAL MENU</td>
+                            <td style="padding: 8px; text-align: right; color: var(--primary);">${menuCost.toFixed(2)} €</td>
+                            <td style="padding: 8px; text-align: right;">${menu.sellingPrice} €</td>
+                            <td style="padding: 8px; text-align: right; color: ${fcSP > 35 ? 'var(--danger)' : 'var(--success)'};">${fcSP.toFixed(0)}%</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+                ` : '<div style="padding: 15px; background: #f1f5f9; border-radius: 8px; text-align: center; color: var(--text-light);">Aucun plat ajouté</div>'}
+
                 <select onchange="addDishToMenu(${index}, this.value); this.value='';" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); width: 100%;">
                     <option value="">+ Ajouter un plat...</option>
                     ${state.final.filter(f => !menu.dishes.includes(f.id)).map(f => '<option value="' + f.id + '">' + f.name + '</option>').join('')}
