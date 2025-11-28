@@ -3154,14 +3154,16 @@ function renderMenus() {
                         ${menu.dishes.map((dishId, dishIdx) => {
                             const dish = state.final.find(f => f.id === dishId);
                             if (!dish) return '';
-                            const dishCost = calculateCost(dish.items, new Set([dish.id]));
+                            const dishMatCost = calculateCost(dish.items, new Set([dish.id]));
+                            const dishPackaging = parseFloat(dish.packagingCost) || 0;
+                            const dishTotalCost = dishMatCost + dishPackaging;
                             const dishPriceTTC = parseFloat(dish.sellingPrice) || 0;
                             const dishPriceHT = dishPriceTTC / (1 + (parseFloat(dish.vat) || 10) / 100);
-                            const dishFC = dishPriceHT > 0 ? (dishCost / dishPriceHT) * 100 : 0;
+                            const dishFC = dishPriceHT > 0 ? (dishTotalCost / dishPriceHT) * 100 : 0;
                             const fcColor = dishFC > 35 ? 'var(--danger)' : 'var(--success)';
                             return '<tr style="border-bottom: 1px solid var(--border);">' +
                                 '<td style="padding: 8px;"><strong>' + dish.name + '</strong></td>' +
-                                '<td style="padding: 8px; text-align: right;">' + dishCost.toFixed(2) + ' €</td>' +
+                                '<td style="padding: 8px; text-align: right;">' + dishTotalCost.toFixed(2) + ' € <span style="font-size:0.7rem;opacity:0.7;">(mat:' + dishMatCost.toFixed(2) + '€)</span></td>' +
                                 '<td style="padding: 8px; text-align: right;">' + dishPriceTTC.toFixed(2) + ' €</td>' +
                                 '<td style="padding: 8px; text-align: right; font-weight: 700; color: ' + fcColor + ';">' + dishFC.toFixed(0) + '%</td>' +
                                 '<td style="padding: 8px; text-align: center;"><button onclick="removeDishFromMenu(' + index + ', ' + dishIdx + ')" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem;">×</button></td>' +
