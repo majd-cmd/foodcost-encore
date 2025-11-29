@@ -2615,7 +2615,11 @@ function updateRecipeCalculations(type, index) {
         const deliveryFee = parseFloat(recipe.deliveryFee) || 0;
         const serviceFee = parseFloat(recipe.serviceFee) || 0;
 
-        // Calcul auto du prix livraison pour avoir même marge nette que emporter:
+        // Prix CLIENT (ce que le client voit sur la plateforme) = juste avec commission
+        const clientPriceHT = priceHT / (1 - commPercent / 100);
+        const clientPriceTTC = clientPriceHT * (1 + (vatRate / 100));
+
+        // Prix TOTAL pour le restaurant (avec tous les frais) pour garder même marge
         // delivPriceHT - (delivPriceHT * comm%) - fees = priceHT
         // delivPriceHT * (1 - comm%) = priceHT + fees
         // delivPriceHT = (priceHT + fees) / (1 - comm%)
@@ -2672,6 +2676,7 @@ function updateRecipeCalculations(type, index) {
         setStyle('bar-liv-margin', dwMargin);
 
         setTxt('val-liv-price', delivPriceTTC.toFixed(2) + ' €');
+        setHtml('val-liv-client', `<span style="color:#fbbf24; font-weight:800;">${clientPriceTTC.toFixed(2)} €</span>`);
         setTxt('val-liv-tva', delivTva.toFixed(2) + ' €');
         setHtml('val-liv-comm', `${totalPlatformFees.toFixed(2)} € <span style="font-size:0.7rem;opacity:0.8">(${commPercent}%: ${commAmount.toFixed(2)}€${deliveryFee > 0 ? ' + Liv: ' + deliveryFee.toFixed(2) + '€' : ''}${serviceFee > 0 ? ' + Serv: ' + serviceFee.toFixed(2) + '€' : ''})</span>`);
         setHtml('val-liv-cost', `${totalCost.toFixed(2)} € <span style="font-size:0.75rem;opacity:0.7">(Mat: ${cost.toFixed(2)}€ + Emb: ${packagingCost.toFixed(2)}€)</span>`);
@@ -2877,13 +2882,17 @@ function renderFinalRecipes() {
                         <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-motorcycle" style="color:#38bdf8;"></i> Livraison (Plateforme)</div>
                     </div>
                     <div class="form-row" style="margin-bottom:8px;">
-                        <div style="flex:1.5;">
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix TTC (auto)</label>
-                            <div id="val-liv-price" style="font-size:1.3rem; font-weight:800; padding:6px; color:#38bdf8;">${recipe.deliveryPrice || '--'} €</div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:700; text-transform:uppercase; color:#fbbf24;">⭐ Prix Client</label>
+                            <div id="val-liv-client" style="font-size:1.4rem; font-weight:800; padding:6px; color:#fbbf24;">-- €</div>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix Réel (auto)</label>
+                            <div id="val-liv-price" style="font-size:1.1rem; font-weight:800; padding:6px; color:#38bdf8;">${recipe.deliveryPrice || '--'} €</div>
                         </div>
                         <div style="flex:1; text-align:center;">
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Food Cost</label>
-                            <div id="val-liv-fc" style="font-size:1.3rem; font-weight:800; padding:6px; color:#38bdf8;">--%</div>
+                            <label style="font-size:0.6rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Food Cost</label>
+                            <div id="val-liv-fc" style="font-size:1.1rem; font-weight:800; padding:6px; color:#38bdf8;">--%</div>
                         </div>
                     </div>
                     <div class="form-row" style="margin-bottom:10px;">
@@ -3111,6 +3120,10 @@ function renderMenus() {
         const deliveryFee = parseFloat(menu.deliveryFee) || 0;
         const serviceFee = parseFloat(menu.serviceFee) || 0;
 
+        // Prix CLIENT (ce que le client voit) = juste avec commission
+        const clientPriceHT = priceHT / (1 - commPercent / 100);
+        const clientPriceTTC = clientPriceHT * (1 + (vatRate / 100));
+
         // Prix livraison = Prix emporter + frais plateforme pour garder même marge
         const calculatedDelivPriceHT = (priceHT + deliveryFee + serviceFee) / (1 - commPercent / 100);
         const calculatedDelivPriceTTC = calculatedDelivPriceHT * (1 + (vatRate / 100));
@@ -3245,13 +3258,17 @@ function renderMenus() {
                         <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-motorcycle" style="color:#38bdf8;"></i> Livraison (Plateforme)</div>
                     </div>
                     <div class="form-row" style="margin-bottom:8px;">
-                        <div style="flex:1.5;">
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix TTC (auto)</label>
-                            <div style="font-size:1.3rem; font-weight:800; padding:6px; color:#38bdf8;">${delivPriceTTC.toFixed(2)} €</div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:700; text-transform:uppercase; color:#fbbf24;">⭐ Prix Client</label>
+                            <div style="font-size:1.4rem; font-weight:800; padding:6px; color:#fbbf24;">${clientPriceTTC.toFixed(2)} €</div>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.6rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Prix Réel (auto)</label>
+                            <div style="font-size:1.1rem; font-weight:800; padding:6px; color:#38bdf8;">${delivPriceTTC.toFixed(2)} €</div>
                         </div>
                         <div style="flex:1; text-align:center;">
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Food Cost</label>
-                            <div style="font-size:1.3rem; font-weight:800; padding:6px; color:${fcDeliv > 35 ? '#f87171' : '#4ade80'};">${fcDeliv.toFixed(0)}%</div>
+                            <label style="font-size:0.6rem; font-weight:700; text-transform:uppercase; color:#94a3b8;">Food Cost</label>
+                            <div style="font-size:1.1rem; font-weight:800; padding:6px; color:${fcDeliv > 35 ? '#f87171' : '#4ade80'};">${fcDeliv.toFixed(0)}%</div>
                         </div>
                     </div>
                     <div class="form-row" style="margin-bottom:10px;">
