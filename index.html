@@ -2010,13 +2010,20 @@ function resetData() {
 }
 
 function exportData() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
-    const node = document.createElement('a');
-    node.setAttribute("href", dataStr);
-    node.setAttribute("download", "mes_recettes.json");
-    document.body.appendChild(node);
-    node.click();
-    node.remove();
+    // Forcer la perte de focus pour déclencher les onchange en attente
+    if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+    }
+    // Petit délai pour s'assurer que saveData() a été appelé
+    setTimeout(() => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+        const node = document.createElement('a');
+        node.setAttribute("href", dataStr);
+        node.setAttribute("download", "mes_recettes.json");
+        document.body.appendChild(node);
+        node.click();
+        node.remove();
+    }, 100);
 }
 
 function importData(input) {
