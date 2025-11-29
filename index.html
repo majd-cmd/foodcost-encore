@@ -3084,7 +3084,8 @@ function createMenu() {
         deliveryFee: 0,
         serviceFee: 0,
         packagingCost: 1.00,
-        dishes: []
+        dishes: [],
+        dishPrices: {} // Prix personnalisés par plat dans ce menu
     });
     activeMenuIndex = state.menus.length - 1;
     saveData();
@@ -3156,39 +3157,66 @@ function renderMenus() {
                 <table style="width:100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.85rem;">
                     <thead>
                         <tr style="background: #f1f5f9;">
-                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid var(--border);">Plat</th>
-                            <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--border);">Coût</th>
-                            <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--border);">Prix Seul</th>
-                            <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--border);">FC%</th>
-                            <th style="padding: 8px; text-align: center; border-bottom: 2px solid var(--border);"></th>
+                            <th style="padding: 6px; text-align: left; border-bottom: 2px solid var(--border);">Plat</th>
+                            <th style="padding: 6px; text-align: right; border-bottom: 2px solid var(--border);">Coût</th>
+                            <th style="padding: 6px; text-align: right; border-bottom: 2px solid var(--border);">Prix Seul</th>
+                            <th style="padding: 6px; text-align: center; border-bottom: 2px solid var(--border); background:#e0f2fe;">Prix Menu</th>
+                            <th style="padding: 6px; text-align: right; border-bottom: 2px solid var(--border);">FC%</th>
+                            <th style="padding: 6px; text-align: right; border-bottom: 2px solid var(--border);">Marge</th>
+                            <th style="padding: 6px; text-align: center; border-bottom: 2px solid var(--border);"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${menu.dishes.map((dishId, dishIdx) => {
-                            const dish = state.final.find(f => f.id === dishId);
-                            if (!dish) return '';
-                            const dishMatCost = calculateCost(dish.items, new Set([dish.id]));
-                            const dishPackaging = parseFloat(dish.packagingCost) || 0;
-                            const dishTotalCost = dishMatCost + dishPackaging;
-                            const dishPriceTTC = parseFloat(dish.sellingPrice) || 0;
-                            const dishPriceHT = dishPriceTTC / (1 + (parseFloat(dish.vat) || 10) / 100);
-                            const dishFC = dishPriceHT > 0 ? (dishTotalCost / dishPriceHT) * 100 : 0;
-                            const fcColor = dishFC > 35 ? 'var(--danger)' : 'var(--success)';
-                            return '<tr style="border-bottom: 1px solid var(--border);">' +
-                                '<td style="padding: 8px;"><strong>' + dish.name + '</strong></td>' +
-                                '<td style="padding: 8px; text-align: right;">' + dishTotalCost.toFixed(2) + ' € <span style="font-size:0.7rem;opacity:0.7;">(mat:' + dishMatCost.toFixed(2) + '€)</span></td>' +
-                                '<td style="padding: 8px; text-align: right;">' + dishPriceTTC.toFixed(2) + ' €</td>' +
-                                '<td style="padding: 8px; text-align: right; font-weight: 700; color: ' + fcColor + ';">' + dishFC.toFixed(0) + '%</td>' +
-                                '<td style="padding: 8px; text-align: center;"><button onclick="removeDishFromMenu(' + index + ', ' + dishIdx + ')" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem;">×</button></td>' +
+                        ${(() => {
+                            if (!menu.dishPrices) menu.dishPrices = {};
+                            let totalMenuPrice = 0;
+                            let totalDishCost = 0;
+                            let totalMarge = 0;
+
+                            const rows = menu.dishes.map((dishId, dishIdx) => {
+                                const dish = state.final.find(f => f.id === dishId);
+                                if (!dish) return '';
+                                const dishMatCost = calculateCost(dish.items, new Set([dish.id]));
+                                const dishPackaging = parseFloat(dish.packagingCost) || 0;
+                                const dishTotalCost = dishMatCost + dishPackaging;
+                                const dishSoloPriceTTC = parseFloat(dish.sellingPrice) || 0;
+
+                                // Prix dans le menu (personnalisé ou par défaut = prix seul)
+                                const menuPriceTTC = menu.dishPrices[dishId] !== undefined ? parseFloat(menu.dishPrices[dishId]) : dishSoloPriceTTC;
+                                const menuPriceHT = menuPriceTTC / (1 + (parseFloat(dish.vat) || 10) / 100);
+                                const dishFC = menuPriceHT > 0 ? (dishTotalCost / menuPriceHT) * 100 : 0;
+                                const dishMarge = menuPriceHT - dishTotalCost;
+
+                                totalMenuPrice += menuPriceTTC;
+                                totalDishCost += dishTotalCost;
+                                totalMarge += dishMarge;
+
+                                const fcColor = dishFC > 35 ? 'var(--danger)' : 'var(--success)';
+                                const margeColor = dishMarge >= 0 ? 'var(--success)' : 'var(--danger)';
+
+                                return '<tr style="border-bottom: 1px solid var(--border);">' +
+                                    '<td style="padding: 6px;"><strong>' + dish.name + '</strong></td>' +
+                                    '<td style="padding: 6px; text-align: right; font-size:0.85rem;">' + dishTotalCost.toFixed(2) + '€</td>' +
+                                    '<td style="padding: 6px; text-align: right; font-size:0.85rem; opacity:0.6;">' + dishSoloPriceTTC.toFixed(2) + '€</td>' +
+                                    '<td style="padding: 6px; text-align: center; background:#f0f9ff;"><input type="number" step="0.5" value="' + menuPriceTTC.toFixed(2) + '" onchange="updateDishPriceInMenu(' + index + ', \\'' + dishId + '\\', this.value)" style="width:60px; text-align:center; font-weight:bold; border:1px solid var(--primary); border-radius:4px; padding:3px;"></td>' +
+                                    '<td style="padding: 6px; text-align: right; font-weight: 700; color: ' + fcColor + ';">' + dishFC.toFixed(0) + '%</td>' +
+                                    '<td style="padding: 6px; text-align: right; font-weight: 700; color: ' + margeColor + ';">' + dishMarge.toFixed(2) + '€</td>' +
+                                    '<td style="padding: 6px; text-align: center;"><button onclick="removeDishFromMenu(' + index + ', ' + dishIdx + ')" style="background: none; border: none; color: var(--danger); cursor: pointer;">×</button></td>' +
+                                '</tr>';
+                            }).join('');
+
+                            const totalFC = totalMenuPrice > 0 ? (totalDishCost / (totalMenuPrice / (1 + vatRate/100))) * 100 : 0;
+
+                            return rows + '<tr style="background: #e2e8f0; font-weight: 700;">' +
+                                '<td style="padding: 6px;">TOTAL</td>' +
+                                '<td style="padding: 6px; text-align: right; color: var(--primary);">' + totalDishCost.toFixed(2) + '€</td>' +
+                                '<td style="padding: 6px;"></td>' +
+                                '<td style="padding: 6px; text-align: center; background:#dbeafe;">' + totalMenuPrice.toFixed(2) + '€</td>' +
+                                '<td style="padding: 6px; text-align: right; color: ' + (totalFC > 35 ? 'var(--danger)' : 'var(--success)') + ';">' + totalFC.toFixed(0) + '%</td>' +
+                                '<td style="padding: 6px; text-align: right; color: ' + (totalMarge >= 0 ? 'var(--success)' : 'var(--danger)') + ';">' + totalMarge.toFixed(2) + '€</td>' +
+                                '<td></td>' +
                             '</tr>';
-                        }).join('')}
-                        <tr style="background: #e2e8f0; font-weight: 700;">
-                            <td style="padding: 8px;">TOTAL MENU</td>
-                            <td style="padding: 8px; text-align: right; color: var(--primary);">${menuCost.toFixed(2)} €</td>
-                            <td style="padding: 8px; text-align: right;">${menu.sellingPrice} €</td>
-                            <td style="padding: 8px; text-align: right; color: ${fcSP > 35 ? 'var(--danger)' : 'var(--success)'};">${fcSP.toFixed(0)}%</td>
-                            <td></td>
-                        </tr>
+                        })()}
                     </tbody>
                 </table>
                 ` : '<div style="padding: 15px; background: #f1f5f9; border-radius: 8px; text-align: center; color: var(--text-light);">Aucun plat ajouté</div>'}
@@ -3368,6 +3396,15 @@ function addDishToMenu(menuIndex, dishId) {
 
 function removeDishFromMenu(menuIndex, dishIdx) {
     state.menus[menuIndex].dishes.splice(dishIdx, 1);
+    saveData();
+    renderMenus();
+}
+
+function updateDishPriceInMenu(menuIndex, dishId, price) {
+    if (!state.menus[menuIndex].dishPrices) {
+        state.menus[menuIndex].dishPrices = {};
+    }
+    state.menus[menuIndex].dishPrices[dishId] = parseFloat(price) || 0;
     saveData();
     renderMenus();
 }
